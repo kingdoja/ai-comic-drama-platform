@@ -1,0 +1,13 @@
+﻿{
+  "name": "thinking",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "python -m uvicorn app.main:app --reload --app-dir apps/api",
+    "build:web": "npm --workspace apps/web run build"
+  }
+}

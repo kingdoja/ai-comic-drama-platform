@@ -1,0 +1,23 @@
+﻿:root {
+  --bg: #fcfaf7;
+  --bg-soft: #f7f2ec;
+  --panel: #f4eee7;
+  --card: #fffdfc;
+  --ink: #17151d;
+  --graphite: #2a2731;
+  --slate: #66606f;
+  --line: #d7d0c8;
+  --accent: #8e334f;
+  --accent-2: #b86d40;
+  --rose: #d9b8bf;
+  --sage: #a8b09e;
+  --success: #2e7d5a;
+  --warning: #c07a24;
+  --error: #b23a3a;
+  --info: #3559b7;
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 12px 30px rgba(23, 21, 29, 0.08);
+  --shadow-lg: 0 24px 48px rgba(23, 21, 29, 0.18);
+}

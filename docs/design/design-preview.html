@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI 漫剧创作者工作台 - Design Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fcfaf7;
+      --bg-soft: #f7f2ec;
+      --panel: #f4eee7;
+      --card: #fffdfc;
+      --ink: #17151d;
+      --graphite: #2a2731;
+      --slate: #66606f;
+      --line: #d7d0c8;
+      --accent: #8e334f;
+      --accent-2: #b86d40;
+      --rose: #d9b8bf;
+      --sage: #a8b09e;
+      --success: #2e7d5a;
+      --warning: #c07a24;
+      --error: #b23a3a;
+      --info: #3559b7;
+      --preview: #17151d;
+      --preview-soft: #23202b;
+      --shadow: 0 12px 30px rgba(23,21,29,.08);
+      --shadow-lg: 0 24px 48px rgba(23,21,29,.18);
+    }
+
+    body.dark {
+      --bg: #17151d;
+      --bg-soft: #23202b;
+      --panel: #1d1a24;
+      --card: #26222d;
+      --ink: #f6f1ea;
+      --graphite: #ede6de;
+      --slate: #b9b0bb;
+      --line: #3a3443;
+      --preview: #100f14;
+      --preview-soft: #1d1a24;
+      --shadow: 0 12px 30px rgba(0,0,0,.28);
+      --shadow-lg: 0 24px 48px rgba(0,0,0,.4);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(217,184,191,.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(184,109,64,.12), transparent 24%),
+        var(--bg);
+      transition: background .2s ease, color .2s ease;
+    }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 32px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 32px;
+    }
+    .hero-copy, .hero-preview, .panel, .palette-card, .mock-card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow); }
+    .hero-copy { padding: 36px; }
+    .eyebrow {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(142,51,79,.08);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    h1, h2 {
+      font-family: "Cormorant Garamond", serif;
+      margin: 16px 0 12px;
+      color: var(--graphite);
+    }
+    h1 { font-size: 60px; line-height: .96; letter-spacing: -.02em; }
+    h2 { font-size: 34px; line-height: 1.05; }
+    p { color: var(--slate); line-height: 1.7; margin: 0; }
+    .hero-actions { display: flex; gap: 12px; margin-top: 24px; }
+    .btn {
+      border-radius: 14px;
+      padding: 13px 18px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .btn.primary { background: var(--accent); color: #fff7fa; border-color: var(--accent); }
+    .btn.soft { background: var(--panel); }
+    .hero-preview {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.0)),
+        var(--preview);
+      padding: 28px;
+      color: #f7f2ec;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-lg);
+    }
+    .preview-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; font-size: 13px; color: #c9bdc4; }
+    .phone {
+      width: 240px;
+      aspect-ratio: 9 / 16;
+      margin: 0 auto;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.1);
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.35)),
+        radial-gradient(circle at top, rgba(142,51,79,.45), transparent 48%),
+        #2b2431;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: end;
+      padding: 18px;
+    }
+    .phone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(transparent 88%, rgba(255,255,255,.03) 88%, rgba(255,255,255,.03) 100%);
+      background-size: 100% 24px;
+      pointer-events: none;
+    }
+    .phone-copy { position: relative; z-index: 1; }
+    .phone-title { font-family: "Cormorant Garamond", serif; font-size: 28px; line-height: 1; margin-bottom: 8px; }
+    .phone-sub { color: #dbcbd2; font-size: 13px; line-height: 1.6; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 24px;
+      margin-top: 24px;
+    }
+    .panel { padding: 24px; }
+    .panel.span-4 { grid-column: span 4; }
+    .panel.span-8 { grid-column: span 8; }
+    .mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: var(--bg-soft);
+      color: var(--graphite);
+    }
+    .chip.wine { background: rgba(142,51,79,.12); color: var(--accent); border-color: rgba(142,51,79,.2); }
+    .chip.copper { background: rgba(184,109,64,.12); color: var(--accent-2); border-color: rgba(184,109,64,.2); }
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .palette-card {
+      overflow: hidden;
+    }
+    .swatch { height: 92px; }
+    .swatch-meta { padding: 12px; }
+    .swatch-name { font-weight: 700; margin-bottom: 4px; }
+    .mockups {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 24px;
+      margin-top: 24px;
+    }
+    .mock-card { padding: 20px; }
+    .workspace-shell {
+      height: 460px;
+      display: grid;
+      grid-template-columns: 220px 1fr 280px;
+      gap: 16px;
+      background: var(--bg);
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .nav, .assist, .main {
+      padding: 16px;
+    }
+    .nav, .assist { background: var(--panel); }
+    .main { background: var(--card); }
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      color: var(--slate);
+    }
+    .nav-item.active {
+      background: rgba(142,51,79,.1);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .stage-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .stage-step {
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--bg-soft);
+      overflow: hidden;
+    }
+    .stage-step.active::after, .stage-step.done::after {
+      content: "";
+      display: block;
+      height: 100%;
+      width: 100%;
+      background: var(--accent);
+    }
+    .stage-step.done::after { background: var(--success); }
+    .storyboard {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .shot {
+      background: var(--panel);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .shot-img {
+      aspect-ratio: 9 / 12;
+      background:
+        radial-gradient(circle at top, rgba(142,51,79,.28), transparent 45%),
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.1)),
+        #332b38;
+    }
+    .shot-meta { padding: 12px; }
+    .meta-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--slate); margin-top: 6px; }
+    .review-shell {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+      height: 460px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .video-stage {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.0)),
+        var(--preview);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .qa-side {
+      background: var(--panel);
+      padding: 16px;
+    }
+    .qa-item {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .severity {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .sev-high { background: rgba(178,58,58,.12); color: var(--error); }
+    .sev-warn { background: rgba(192,122,36,.12); color: var(--warning); }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 12px;
+    }
+    .toggle {
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    @media (max-width: 1100px) {
+      .hero, .mockups { grid-template-columns: 1fr; }
+      .panel.span-4, .panel.span-8 { grid-column: 1 / -1; }
+      .palette { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .workspace-shell, .review-shell { grid-template-columns: 1fr; height: auto; }
+      .storyboard { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .wrap { padding: 18px; }
+      h1 { font-size: 40px; }
+      .storyboard, .palette { grid-template-columns: 1fr; }
+      .hero-copy, .hero-preview, .panel, .mock-card { border-radius: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="mono">AI 漫剧创作者工作台 / Design Preview</div>
+      <button class="toggle" id="themeToggle">切换 Light / Dark</button>
+    </div>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Editorial Control Room</div>
+        <h1>把网文改编成可发布竖屏漫剧的创作工作台</h1>
+        <p>这套设计不是做一个“会聊天的 AI 工具”，而是做一个让创作者能看见阶段、掌控人物、审阅镜头、稳定交付内容的编辑部控制台。</p>
+        <div class="hero-actions">
+          <button class="btn primary">从素材改编</button>
+          <button class="btn soft">查看工作台原型</button>
+          <button class="btn">阅读 DESIGN.md</button>
+        </div>
+        <div class="chips">
+          <span class="chip wine">Stage-aware</span>
+          <span class="chip copper">Artifact-first</span>
+          <span class="chip">Editable</span>
+          <span class="chip">Lockable</span>
+          <span class="chip">Re-runnable</span>
+        </div>
+      </div>
+      <div class="hero-preview">
+        <div class="preview-top">
+          <span>9:16 Preview Stage</span>
+          <span class="mono">EP01 / STORYBOARD LOCKED</span>
+        </div>
+        <div class="phone">
+          <div class="phone-copy">
+            <div class="phone-title">她不是弃女</div>
+            <div class="phone-sub">第 1 集 · 都市逆袭 · 73 秒  
+            反转点已锁定，封面与标题待确认</div>
+          </div>
+        </div>
+        <div class="mono">Default workspace is light-first. Preview wells can go dark for focus.</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel span-4">
+        <h2>Typography</h2>
+        <p>Serif 负责戏剧张力和编辑感，无衬线负责日常生产效率，等宽字体负责版本、镜头、状态和任务元信息。</p>
+        <div style="margin-top:16px">
+          <div style="font-family:'Cormorant Garamond',serif;font-size:34px;color:var(--graphite)">章节标题 / 戏剧提示</div>
+          <div style="margin-top:12px;font-size:15px">镜头状态、角色卡、分镜编辑、审核意见、QA 结果都用 Plus Jakarta Sans。</div>
+          <div class="mono" style="margin-top:12px">SHOT_01_A / v03 / QA_FAIL / 01:13</div>
+        </div>
+      </div>
+      <div class="panel span-8">
+        <h2>Color</h2>
+        <p>基础界面采用温润纸面色，强调色走酒红与铜色，建立“内容戏剧张力”而不是“AI 发光实验室”气质。</p>
+        <div class="palette">
+          <div class="palette-card"><div class="swatch" style="background:#fcfaf7"></div><div class="swatch-meta"><div class="swatch-name">Paper</div><div class="mono">#FCFAF7</div></div></div>
+          <div class="palette-card"><div class="swatch" style="background:#17151d"></div><div class="swatch-meta"><div class="swatch-name">Ink</div><div class="mono">#17151D</div></div></div>
+          <div class="palette-card"><div class="swatch" style="background:#8e334f"></div><div class="swatch-meta"><div class="swatch-name">Wine</div><div class="mono">#8E334F</div></div></div>
+          <div class="palette-card"><div class="swatch" style="background:#b86d40"></div><div class="swatch-meta"><div class="swatch-name">Copper</div><div class="mono">#B86D40</div></div></div>
+          <div class="palette-card"><div class="swatch" style="background:#a8b09e"></div><div class="swatch-meta"><div class="swatch-name">Sage Smoke</div><div class="mono">#A8B09E</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mockups">
+      <div class="mock-card">
+        <h2>Workspace Mock</h2>
+        <div class="workspace-shell">
+          <div class="nav">
+            <div class="mono" style="margin-bottom:12px">PROJECT NAV</div>
+            <div class="nav-item active">Overview</div>
+            <div class="nav-item">Story Bible</div>
+            <div class="nav-item">Characters</div>
+            <div class="nav-item">Episode Plan</div>
+            <div class="nav-item">Storyboard</div>
+            <div class="nav-item">Preview & QA</div>
+            <div class="nav-item">Publish</div>
+          </div>
+          <div class="main">
+            <div class="stage-bar">
+              <div class="stage-step done"></div>
+              <div class="stage-step done"></div>
+              <div class="stage-step active"></div>
+              <div class="stage-step"></div>
+              <div class="stage-step"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:14px">
+              <div>
+                <div class="mono">EP01 / STORYBOARD</div>
+                <div style="font-size:26px;font-weight:700;margin-top:6px">当前阶段：分镜确认</div>
+              </div>
+              <span class="chip wine">下一步：生成关键帧</span>
+            </div>
+            <div class="storyboard">
+              <div class="shot"><div class="shot-img"></div><div class="shot-meta"><strong>SHOT_01</strong><div class="meta-row"><span>女主出场</span><span>6s</span></div></div></div>
+              <div class="shot"><div class="shot-img"></div><div class="shot-meta"><strong>SHOT_02</strong><div class="meta-row"><span>反派挑衅</span><span>5s</span></div></div></div>
+              <div class="shot"><div class="shot-img"></div><div class="shot-meta"><strong>SHOT_03</strong><div class="meta-row"><span>身份反转伏笔</span><span>7s</span></div></div></div>
+            </div>
+          </div>
+          <div class="assist">
+            <div class="mono" style="margin-bottom:12px">AI ASSIST + QA</div>
+            <div class="qa-item">
+              <div class="severity sev-warn">提示</div>
+              <div style="font-weight:700;margin-bottom:6px">镜头 03 建议锁定服装锚点</div>
+              <div style="font-size:13px;color:var(--slate)">避免后续关键帧生成时耳饰和裙摆漂移。</div>
+            </div>
+            <div class="qa-item">
+              <div class="severity sev-high">需处理</div>
+              <div style="font-weight:700;margin-bottom:6px">镜头时长偏长</div>
+              <div style="font-size:13px;color:var(--slate)">当前版本预计超出目标时长 11 秒。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-card">
+        <h2>Preview & QA Mock</h2>
+        <div class="review-shell">
+          <div class="video-stage">
+            <div class="phone">
+              <div class="phone-copy">
+                <div class="phone-title">第 1 集预览</div>
+                <div class="phone-sub">73 秒 · 字幕已生成 · 配音 v2</div>
+              </div>
+            </div>
+          </div>
+          <div class="qa-side">
+            <div class="mono" style="margin-bottom:12px">FINAL CHECK</div>
+            <div class="qa-item">
+              <div class="severity sev-high">高优先级</div>
+              <div style="font-weight:700;margin-bottom:6px">03 镜头西装颜色漂移</div>
+              <div style="font-size:13px;color:var(--slate)">建议仅重跑 SHOT_03，复用其余视觉资产。</div>
+            </div>
+            <div class="qa-item">
+              <div class="severity sev-warn">中优先级</div>
+              <div style="font-weight:700;margin-bottom:6px">字幕第 8 行过长</div>
+              <div style="font-size:13px;color:var(--slate)">建议分为两段，避免手机端阅读压力。</div>
+            </div>
+            <button class="btn primary" style="width:100%;margin-top:10px">修复后重新质检</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    document.getElementById('themeToggle').addEventListener('click', function () {
+      document.body.classList.toggle('dark');
+    });
+  </script>
+</body>
+</html>
