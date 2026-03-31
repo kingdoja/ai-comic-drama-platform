@@ -11,18 +11,29 @@ class WorkflowRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create(self, project_id, episode_id, payload: StartEpisodeWorkflowRequest) -> WorkflowRunModel:
+    def create(
+        self,
+        project_id,
+        episode_id,
+        payload: StartEpisodeWorkflowRequest,
+        workflow_kind: str = "episode",
+        commit: bool = True,
+    ) -> WorkflowRunModel:
         workflow = WorkflowRunModel(
             project_id=project_id,
             episode_id=episode_id,
-            workflow_kind=payload.start_stage,
+            workflow_kind=workflow_kind,
             temporal_workflow_id=f"episode-{episode_id}-{uuid.uuid4()}",
             temporal_run_id=str(uuid.uuid4()),
             status="running",
+            rerun_from_stage=payload.start_stage if payload.start_stage != "brief" else None,
         )
         self.db.add(workflow)
-        self.db.commit()
-        self.db.refresh(workflow)
+        if commit:
+            self.db.commit()
+            self.db.refresh(workflow)
+        else:
+            self.db.flush()
         return workflow
 
     def latest_for_episode(self, episode_id):

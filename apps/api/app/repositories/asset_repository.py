@@ -15,3 +15,14 @@ class AssetRepository:
             .order_by(AssetModel.created_at.desc())
         )
         return list(self.db.scalars(stmt).all())
+
+    def list_selected_for_episode(self, episode_id) -> list[AssetModel]:
+        stmt = (
+            select(AssetModel)
+            .where(
+                AssetModel.episode_id == episode_id,
+                AssetModel.is_selected.is_(True),
+            )
+            .order_by(AssetModel.created_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())

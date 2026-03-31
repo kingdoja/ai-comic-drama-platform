@@ -20,6 +20,9 @@ AssetType = Literal[
     "export_bundle",
 ]
 QAResult = Literal["pass", "fail", "warn", "pending"]
+StageTaskStatus = Literal["pending", "running", "succeeded", "failed", "skipped", "blocked"]
+ReviewDecisionType = Literal["approved", "rejected", "request_changes"]
+ReviewSummaryStatus = Literal["none", "pending", "approved", "rejected", "request_changes"]
 
 
 class DocumentSummaryResponse(BaseModel):
@@ -46,10 +49,35 @@ class AssetSummaryResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class StageTaskSummaryResponse(BaseModel):
+    id: UUID
+    stage_type: str
+    task_status: StageTaskStatus
+    worker_kind: str
+    review_required: bool = False
+    review_status: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    error_message: str | None = None
+
+
 class ShotSummaryResponse(BaseModel):
+    id: UUID | None = None
     code: str
+    shot_index: int | None = None
+    title: str | None = None
     duration_ms: int
     status: str
+    stage_task_id: UUID | None = None
+    updated_at: datetime | None = None
+
+
+class ReviewDecisionSummaryResponse(BaseModel):
+    id: UUID
+    status: ReviewDecisionType
+    decision_note: str | None = None
+    stage_task_id: UUID
+    created_at: datetime | None = None
 
 
 class QAReportSummaryResponse(BaseModel):
@@ -68,13 +96,21 @@ class WorkspaceQAResponse(BaseModel):
     reports: list[QAReportSummaryResponse] = Field(default_factory=list)
 
 
+class WorkspaceReviewResponse(BaseModel):
+    status: ReviewSummaryStatus = "none"
+    pending_count: int = 0
+    latest_decision: ReviewDecisionSummaryResponse | None = None
+
+
 class EpisodeWorkspaceResponse(BaseModel):
     project: ProjectResponse
     episode: EpisodeResponse
     documents: list[DocumentSummaryResponse] = Field(default_factory=list)
+    stage_tasks: list[StageTaskSummaryResponse] = Field(default_factory=list)
     shots: list[ShotSummaryResponse] = Field(default_factory=list)
     assets: list[AssetSummaryResponse] = Field(default_factory=list)
     qa_summary: WorkspaceQAResponse
+    review_summary: WorkspaceReviewResponse = Field(default_factory=WorkspaceReviewResponse)
     latest_workflow: WorkflowRunResponse | None = None
     generated_at: datetime
     metadata: dict[str, Any] = Field(default_factory=dict)

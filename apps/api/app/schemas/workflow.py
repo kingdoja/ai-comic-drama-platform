@@ -5,14 +5,29 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 WorkflowStatus = Literal["pending", "running", "waiting_review", "succeeded", "failed"]
+StageType = Literal[
+    "brief",
+    "story_bible",
+    "character",
+    "script",
+    "storyboard",
+    "visual_spec",
+    "image_render",
+    "subtitle",
+    "tts",
+    "edit_export_preview",
+    "qa",
+    "human_review_gate",
+    "export_final",
+]
 
 
 class StartEpisodeWorkflowRequest(BaseModel):
-    start_stage: str = Field(default="brief")
+    start_stage: StageType = Field(default="brief")
 
 
 class RerunStageRequest(BaseModel):
-    rerun_stage: str
+    rerun_stage: StageType
     target_shot_ids: list[UUID] = Field(default_factory=list)
 
 

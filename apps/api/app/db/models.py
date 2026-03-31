@@ -65,6 +65,31 @@ class WorkflowRunModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class StageTaskModel(Base):
+    __tablename__ = "stage_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workflow_run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workflow_runs.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    episode_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("episodes.id", ondelete="CASCADE"))
+    stage_type: Mapped[str] = mapped_column(String(32))
+    task_status: Mapped[str] = mapped_column(String(32), default="pending")
+    agent_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    worker_kind: Mapped[str] = mapped_column(String(32))
+    attempt_no: Mapped[int] = mapped_column(Integer, default=1)
+    max_retries: Mapped[int] = mapped_column(Integer, default=3)
+    input_ref_jsonb: Mapped[list] = mapped_column(JSONB, default=list)
+    output_ref_jsonb: Mapped[list] = mapped_column(JSONB, default=list)
+    review_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class DocumentModel(Base):
     __tablename__ = "documents"
 
@@ -83,6 +108,30 @@ class DocumentModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class ShotModel(Base):
+    __tablename__ = "shots"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    episode_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("episodes.id", ondelete="CASCADE"))
+    stage_task_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stage_tasks.id", ondelete="SET NULL"), nullable=True)
+    scene_no: Mapped[int] = mapped_column(Integer)
+    shot_no: Mapped[int] = mapped_column(Integer)
+    shot_code: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default="draft")
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    camera_size: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    camera_angle: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    movement_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    characters_jsonb: Mapped[list] = mapped_column(JSONB, default=list)
+    action_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dialogue_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    visual_constraints_jsonb: Mapped[dict] = mapped_column(JSONB, default=dict)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class AssetModel(Base):
     __tablename__ = "assets"
 
@@ -90,7 +139,7 @@ class AssetModel(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
     episode_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("episodes.id", ondelete="CASCADE"), nullable=True)
     stage_task_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("stage_tasks.id", ondelete="SET NULL"), nullable=True)
-    shot_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    shot_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("shots.id", ondelete="SET NULL"), nullable=True)
     asset_type: Mapped[str] = mapped_column(String(32))
     storage_key: Mapped[str] = mapped_column(Text)
     mime_type: Mapped[str] = mapped_column(String(120))
@@ -122,4 +171,18 @@ class QAReportModel(Base):
     issue_count: Mapped[int] = mapped_column(Integer, default=0)
     issues_jsonb: Mapped[list] = mapped_column(JSONB, default=list)
     rerun_stage_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ReviewDecisionModel(Base):
+    __tablename__ = "review_decisions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    episode_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("episodes.id", ondelete="CASCADE"))
+    stage_task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stage_tasks.id", ondelete="CASCADE"))
+    reviewer_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    decision: Mapped[str] = mapped_column(String(16))
+    comment_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_jsonb: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

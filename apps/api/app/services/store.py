@@ -2,12 +2,25 @@
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from app.db.models import AssetModel, DocumentModel, EpisodeModel, ProjectModel, QAReportModel, WorkflowRunModel
+from app.db.models import (
+    AssetModel,
+    DocumentModel,
+    EpisodeModel,
+    ProjectModel,
+    QAReportModel,
+    ReviewDecisionModel,
+    ShotModel,
+    StageTaskModel,
+    WorkflowRunModel,
+)
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.episode_repository import EpisodeRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.qa_repository import QARepository
+from app.repositories.review_repository import ReviewRepository
+from app.repositories.shot_repository import ShotRepository
+from app.repositories.stage_task_repository import StageTaskRepository
 from app.repositories.workflow_repository import WorkflowRepository
 from app.schemas.project import CreateEpisodeRequest, CreateProjectRequest, EpisodeResponse, ProjectResponse
 from app.schemas.workflow import StartEpisodeWorkflowRequest, WorkflowRunResponse
@@ -16,9 +29,13 @@ from app.schemas.workspace import (
     DocumentSummaryResponse,
     EpisodeWorkspaceResponse,
     QAReportSummaryResponse,
+    ReviewDecisionSummaryResponse,
     ShotSummaryResponse,
+    StageTaskSummaryResponse,
     WorkspaceQAResponse,
+    WorkspaceReviewResponse,
 )
+from app.services.workflow_service import WorkflowService
 
 
 def _to_project_response(project: ProjectModel) -> ProjectResponse:
@@ -64,6 +81,33 @@ def _to_asset_summary(asset: AssetModel) -> AssetSummaryResponse:
     )
 
 
+def _to_stage_task_summary(stage_task: StageTaskModel) -> StageTaskSummaryResponse:
+    return StageTaskSummaryResponse(
+        id=stage_task.id,
+        stage_type=stage_task.stage_type,
+        task_status=stage_task.task_status,
+        worker_kind=stage_task.worker_kind,
+        review_required=stage_task.review_required,
+        review_status=stage_task.review_status,
+        started_at=stage_task.started_at,
+        finished_at=stage_task.finished_at,
+        error_message=stage_task.error_message,
+    )
+
+
+def _to_shot_summary(shot: ShotModel) -> ShotSummaryResponse:
+    return ShotSummaryResponse(
+        id=shot.id,
+        code=shot.shot_code,
+        shot_index=shot.shot_no,
+        title=shot.action_text,
+        duration_ms=shot.duration_ms,
+        status=shot.status,
+        stage_task_id=shot.stage_task_id,
+        updated_at=shot.updated_at,
+    )
+
+
 def _to_qa_summary(report: QAReportModel) -> QAReportSummaryResponse:
     return QAReportSummaryResponse(
         id=report.id,
@@ -76,6 +120,16 @@ def _to_qa_summary(report: QAReportModel) -> QAReportSummaryResponse:
     )
 
 
+def _to_review_summary(review: ReviewDecisionModel) -> ReviewDecisionSummaryResponse:
+    return ReviewDecisionSummaryResponse(
+        id=review.id,
+        status=review.decision,
+        decision_note=review.comment_text,
+        stage_task_id=review.stage_task_id,
+        created_at=review.created_at,
+    )
+
+
 class DatabaseStore:
     def __init__(self, db: Session) -> None:
         self.projects = ProjectRepository(db)
@@ -84,6 +138,10 @@ class DatabaseStore:
         self.documents = DocumentRepository(db)
         self.assets = AssetRepository(db)
         self.qa_reports = QARepository(db)
+        self.stage_tasks = StageTaskRepository(db)
+        self.shots = ShotRepository(db)
+        self.reviews = ReviewRepository(db)
+        self.workflow_service = WorkflowService(db, self.workflows, self.stage_tasks)
 
     def create_project(self, payload: CreateProjectRequest) -> ProjectResponse:
         return _to_project_response(self.projects.create(payload))
@@ -103,7 +161,8 @@ class DatabaseStore:
         return _to_episode_response(episode) if episode else None
 
     def start_workflow(self, project_id, episode_id, payload: StartEpisodeWorkflowRequest) -> WorkflowRunResponse:
-        return _to_workflow_response(self.workflows.create(project_id, episode_id, payload))
+        workflow = self.workflow_service.start_episode_workflow(project_id, episode_id, payload)
+        return _to_workflow_response(workflow)
 
     def latest_workflow_for_episode(self, episode_id):
         return _to_workflow_response(self.workflows.latest_for_episode(episode_id))
@@ -114,9 +173,22 @@ class DatabaseStore:
         if not project or not episode:
             return None
 
+        latest_workflow = self.workflows.latest_for_episode(episode_id)
         documents = [_to_document_summary(item) for item in self.documents.list_for_episode(episode_id)]
-        assets = [_to_asset_summary(item) for item in self.assets.list_for_episode(episode_id)]
+
+        selected_assets = self.assets.list_selected_for_episode(episode_id)
+        assets_source = selected_assets if selected_assets else self.assets.list_for_episode(episode_id)
+        assets = [_to_asset_summary(item) for item in assets_source]
+
         qa_reports = [_to_qa_summary(item) for item in self.qa_reports.list_for_episode(episode_id)]
+        if latest_workflow:
+            stage_task_models = self.stage_tasks.list_for_workflow(latest_workflow.id)
+        else:
+            stage_task_models = self.stage_tasks.list_for_episode(episode_id)
+        stage_tasks = [_to_stage_task_summary(item) for item in stage_task_models]
+
+        shots = [_to_shot_summary(item) for item in self.shots.list_current_for_episode(episode_id)]
+        reviews = [_to_review_summary(item) for item in self.reviews.list_for_episode(episode_id)]
 
         qa_result = "pending"
         issue_count = 0
@@ -124,22 +196,48 @@ class DatabaseStore:
             qa_result = qa_reports[0].result
             issue_count = sum(item.issue_count for item in qa_reports)
 
+        pending_review_count = sum(
+            1
+            for task in stage_tasks
+            if task.review_required
+            and task.task_status == "succeeded"
+            and task.review_status in (None, "pending")
+        )
+        latest_decision = reviews[0] if reviews else None
+
+        if pending_review_count > 0:
+            review_summary = WorkspaceReviewResponse(
+                status="pending",
+                pending_count=pending_review_count,
+                latest_decision=latest_decision,
+            )
+        elif latest_decision is not None:
+            review_summary = WorkspaceReviewResponse(
+                status=latest_decision.status,
+                pending_count=0,
+                latest_decision=latest_decision,
+            )
+        else:
+            review_summary = WorkspaceReviewResponse()
+
         return EpisodeWorkspaceResponse(
             project=project,
             episode=episode,
             documents=documents,
-            shots=[
-                ShotSummaryResponse(code="SHOT_01", duration_ms=6000, status="ready"),
-                ShotSummaryResponse(code="SHOT_02", duration_ms=5000, status="ready"),
-                ShotSummaryResponse(code="SHOT_03", duration_ms=7000, status="warning"),
-            ],
+            stage_tasks=stage_tasks,
+            shots=shots,
             assets=assets,
             qa_summary=WorkspaceQAResponse(
                 result=qa_result,
                 issue_count=issue_count,
                 reports=qa_reports,
             ),
-            latest_workflow=self.latest_workflow_for_episode(episode_id),
+            review_summary=review_summary,
+            latest_workflow=_to_workflow_response(latest_workflow),
             generated_at=datetime.now(UTC),
-            metadata={"mode": "database-backed-workspace"},
+            metadata={
+                "mode": "database-backed-workspace",
+                "shots_mode": "current-version-db-query",
+                "assets_mode": "selected-first",
+            },
         )
