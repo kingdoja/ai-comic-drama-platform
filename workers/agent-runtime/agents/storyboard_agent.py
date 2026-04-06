@@ -193,6 +193,20 @@ class StoryboardAgent(BaseAgent):
         # Parse JSON response
         try:
             content = json.loads(response.content)
+            
+            # Post-process: ensure all required fields exist in each shot
+            shots = content.get("shots", [])
+            for shot in shots:
+                # Ensure character_refs exists (even if empty)
+                if "character_refs" not in shot:
+                    shot["character_refs"] = []
+                # Ensure style_keywords exists
+                if "style_keywords" not in shot:
+                    shot["style_keywords"] = []
+                # Ensure composition exists
+                if "composition" not in shot:
+                    shot["composition"] = "medium"
+            
             return content
         except json.JSONDecodeError:
             # If LLM didn't return valid JSON, try to extract it
@@ -210,6 +224,17 @@ class StoryboardAgent(BaseAgent):
             
             try:
                 content = json.loads(content_str)
+                
+                # Post-process: ensure all required fields exist in each shot
+                shots = content.get("shots", [])
+                for shot in shots:
+                    if "character_refs" not in shot:
+                        shot["character_refs"] = []
+                    if "style_keywords" not in shot:
+                        shot["style_keywords"] = []
+                    if "composition" not in shot:
+                        shot["composition"] = "medium"
+                
                 return content
             except json.JSONDecodeError as e:
                 raise RuntimeError(f"LLM returned invalid JSON: {e}\nResponse: {response.content}")
@@ -307,11 +332,19 @@ class StoryboardAgent(BaseAgent):
                 shot_required = schema["properties"]["shots"]["items"]["required"]
                 for idx, shot in enumerate(shots):
                     for field in shot_required:
-                        if field not in shot or not shot[field]:
+                        # Check if field exists (allow empty arrays/strings for some fields)
+                        if field not in shot:
                             errors.append({
                                 "field_path": f"shots[{idx}].{field}",
                                 "error_type": "missing_required",
                                 "message": f"Required shot field '{field}' is missing"
+                            })
+                        # For non-array fields, check if empty
+                        elif field in ["shot_id", "render_prompt", "composition"] and not shot[field]:
+                            errors.append({
+                                "field_path": f"shots[{idx}].{field}",
+                                "error_type": "missing_required",
+                                "message": f"Required shot field '{field}' is empty"
                             })
             
             return {
@@ -532,6 +565,14 @@ class StoryboardAgent(BaseAgent):
 5. style_keywords 要具体（如：赛博朋克、冷色调、霓虹灯、未来感等）
 6. composition 要明确（close-up/medium/wide/two-shot/over-shoulder 等）
 
+【重要提示】
+每个 shot 对象必须包含以下 5 个必需字段：
+1. shot_id (string): 唯一镜头ID
+2. render_prompt (string): 详细的渲染提示词
+3. character_refs (array): 出现的角色名称列表（即使为空也要包含 []）
+4. style_keywords (array): 风格关键词列表
+5. composition (string): 镜头构图
+
 【示例输出】
 ```json
 {{
@@ -559,7 +600,7 @@ class StoryboardAgent(BaseAgent):
     }}
   ],
   "overall_duration_ms": 60000,
-  "shot_count": 10,
+  "shot_count": 3,
   "visual_style": "赛博朋克风格，冷色调为主，霓虹灯光效果，未来感城市场景，数字化元素点缀",
   "camera_strategy": "以中景和特写为主，通过镜头语言强化角色情绪和神秘氛围，使用双人镜头展现角色关系"
 }}
