@@ -1,0 +1,17 @@
+# Agent Runtime 依赖
+
+# LLM 服务
+dashscope>=1.14.0  # 通义千问（必需）
+openai>=1.0.0  # OpenAI（可选）
+anthropic>=0.18.0  # Claude（可选）
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# JSON Schema 验证
+jsonschema>=4.17.0
+
+# 测试
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+hypothesis>=6.82.0
