@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy.orm import Session
@@ -48,7 +49,7 @@ def _to_episode_response(episode: EpisodeModel) -> EpisodeResponse:
     return EpisodeResponse.model_validate(episode, from_attributes=True)
 
 
-def _to_workflow_response(workflow: WorkflowRunModel | None) -> WorkflowRunResponse | None:
+def _to_workflow_response(workflow: Optional[WorkflowRunModel]) -> Optional[WorkflowRunResponse]:
     if workflow is None:
         return None
     return WorkflowRunResponse.model_validate(workflow, from_attributes=True)
@@ -149,7 +150,7 @@ class DatabaseStore:
     def create_project(self, payload: CreateProjectRequest) -> ProjectResponse:
         return _to_project_response(self.projects.create(payload))
 
-    def list_projects(self) -> list[ProjectResponse]:
+    def list_projects(self) -> List[ProjectResponse]:
         return [_to_project_response(item) for item in self.projects.list()]
 
     def get_project(self, project_id):

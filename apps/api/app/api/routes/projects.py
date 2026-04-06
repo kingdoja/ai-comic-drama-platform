@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_store
 from app.schemas.common import SuccessEnvelope
+from app.schemas.document import DocumentResponse, UpdateDocumentRequest
 from app.schemas.project import CreateEpisodeRequest, CreateProjectRequest
 from app.schemas.workflow import RerunStageRequest, StartEpisodeWorkflowRequest
 from app.schemas.workspace import SubmitReviewDecisionRequest
+from app.services.document_service import DocumentService, LockedFieldError, SchemaValidationError
 from app.services.store import DatabaseStore
 
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -94,3 +96,43 @@ def submit_review(project_id: UUID, episode_id: UUID, payload: SubmitReviewDecis
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return SuccessEnvelope(data=review)
+
+
+@router.put("/documents/{document_id}", response_model=SuccessEnvelope)
+def update_document(
+    document_id: UUID,
+    payload: UpdateDocumentRequest,
+    store: DatabaseStore = Depends(get_store)
+) -> SuccessEnvelope:
+    """
+    Update a document by creating a new version.
+    
+    Implements Requirements:
+    - 9.1: Create new version instead of overwriting
+    - 9.2: Record editing source (user_id)
+    - 9.3: Reject edits that modify locked fields
+    - 9.4: Update updated_at timestamp
+    - 9.5: Validate content against schema
+    """
+    document_service = DocumentService(store.db)
+    
+    try:
+        updated_document = document_service.update_document(
+            document_id=document_id,
+            new_content=payload.content_jsonb,
+            user_id=payload.user_id
+        )
+        
+        # Convert to response
+        response = DocumentResponse.model_validate(updated_document, from_attributes=True)
+        return SuccessEnvelope(data=response)
+        
+    except ValueError as e:
+        # Document not found
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except LockedFieldError as e:
+        # Locked field modification attempt
+        raise HTTPException(status_code=400, detail=f"Locked field error: {str(e)}") from e
+    except SchemaValidationError as e:
+        # Schema validation failure
+        raise HTTPException(status_code=400, detail=f"Schema validation error: {str(e)}") from e

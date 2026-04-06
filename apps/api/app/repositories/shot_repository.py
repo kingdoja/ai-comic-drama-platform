@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -8,7 +9,7 @@ class ShotRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create_many(self, payloads: list[dict], commit: bool = True) -> list[ShotModel]:
+    def create_many(self, payloads: List[Dict[str, Any]], commit: bool = True) -> List[ShotModel]:
         shots = [ShotModel(**payload) for payload in payloads]
         self.db.add_all(shots)
         if commit:
@@ -23,7 +24,7 @@ class ShotRepository:
         version = self.db.scalar(select(func.max(ShotModel.version)).where(ShotModel.episode_id == episode_id))
         return int(version or 0)
 
-    def list_for_episode(self, episode_id) -> list[ShotModel]:
+    def list_for_episode(self, episode_id) -> List[ShotModel]:
         stmt = (
             select(ShotModel)
             .where(ShotModel.episode_id == episode_id)
@@ -31,7 +32,7 @@ class ShotRepository:
         )
         return list(self.db.scalars(stmt).all())
 
-    def list_current_for_episode(self, episode_id) -> list[ShotModel]:
+    def list_current_for_episode(self, episode_id) -> List[ShotModel]:
         latest_version = self.db.scalar(
             select(func.max(ShotModel.version)).where(ShotModel.episode_id == episode_id)
         )
@@ -48,7 +49,7 @@ class ShotRepository:
         )
         return list(self.db.scalars(stmt).all())
 
-    def list_for_stage_task(self, stage_task_id) -> list[ShotModel]:
+    def list_for_stage_task(self, stage_task_id) -> List[ShotModel]:
         stmt = (
             select(ShotModel)
             .where(ShotModel.stage_task_id == stage_task_id)

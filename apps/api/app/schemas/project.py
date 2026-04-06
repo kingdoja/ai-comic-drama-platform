@@ -1,5 +1,5 @@
 ﻿from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -24,18 +24,18 @@ ProjectStatus = Literal[
 class CreateProjectRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     source_mode: Literal["adaptation", "original"] = "adaptation"
-    genre: str | None = None
+    genre: Optional[str] = None
     target_platform: str
-    target_audience: str | None = None
+    target_audience: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
     id: UUID
     name: str
     source_mode: Literal["adaptation", "original"]
-    genre: str | None = None
+    genre: Optional[str] = None
     target_platform: str
-    target_audience: str | None = None
+    target_audience: Optional[str] = None
     status: ProjectStatus
     created_at: datetime
     updated_at: datetime
@@ -43,7 +43,7 @@ class ProjectResponse(BaseModel):
 
 class CreateEpisodeRequest(BaseModel):
     episode_no: int = Field(ge=1)
-    title: str | None = Field(default=None, max_length=200)
+    title: Optional[str] = Field(default=None, max_length=200)
     target_duration_sec: int = Field(ge=15, le=300)
 
 
@@ -51,7 +51,7 @@ class EpisodeResponse(BaseModel):
     id: UUID
     project_id: UUID
     episode_no: int
-    title: str | None = None
+    title: Optional[str] = None
     status: ProjectStatus
     current_stage: str
     target_duration_sec: int

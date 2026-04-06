@@ -1,5 +1,5 @@
 ﻿from datetime import datetime
-from typing import Literal
+from typing import List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -28,7 +28,7 @@ class StartEpisodeWorkflowRequest(BaseModel):
 
 class RerunStageRequest(BaseModel):
     rerun_stage: StageType
-    target_shot_ids: list[UUID] = Field(default_factory=list)
+    target_shot_ids: List[UUID] = Field(default_factory=list)
 
 
 class WorkflowRunResponse(BaseModel):
@@ -38,4 +38,4 @@ class WorkflowRunResponse(BaseModel):
     status: WorkflowStatus
     workflow_kind: str
     started_at: datetime
-    finished_at: datetime | None = None
+    finished_at: Optional[datetime] = None

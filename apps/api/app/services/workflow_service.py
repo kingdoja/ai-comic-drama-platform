@@ -1,3 +1,5 @@
+from typing import Dict
+
 from sqlalchemy.orm import Session
 
 from app.db.models import EpisodeModel, ProjectModel
@@ -9,7 +11,7 @@ from app.repositories.workflow_repository import WorkflowRepository
 from app.schemas.workflow import StartEpisodeWorkflowRequest
 from app.services.text_workflow_service import TEXT_STAGE_SEQUENCE, TextWorkflowService
 
-STAGE_WORKER_KIND: dict[str, str] = {
+STAGE_WORKER_KIND: Dict[str, str] = {
     "brief": "agent",
     "story_bible": "agent",
     "character": "agent",
@@ -25,7 +27,7 @@ STAGE_WORKER_KIND: dict[str, str] = {
     "export_final": "media",
 }
 
-STAGE_AGENT_NAME: dict[str, str] = {
+STAGE_AGENT_NAME: Dict[str, str] = {
     "brief": "Brief Agent",
     "story_bible": "Story Bible Agent",
     "character": "Character Agent",

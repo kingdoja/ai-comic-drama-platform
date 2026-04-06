@@ -1,3 +1,4 @@
+from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,7 @@ class StageTaskRepository:
             self.db.flush()
         return stage_task
 
-    def list_for_workflow(self, workflow_run_id) -> list[StageTaskModel]:
+    def list_for_workflow(self, workflow_run_id) -> List[StageTaskModel]:
         stmt = (
             select(StageTaskModel)
             .where(StageTaskModel.workflow_run_id == workflow_run_id)
@@ -29,7 +30,7 @@ class StageTaskRepository:
         )
         return list(self.db.scalars(stmt).all())
 
-    def list_for_episode(self, episode_id) -> list[StageTaskModel]:
+    def list_for_episode(self, episode_id) -> List[StageTaskModel]:
         stmt = (
             select(StageTaskModel)
             .where(StageTaskModel.episode_id == episode_id)

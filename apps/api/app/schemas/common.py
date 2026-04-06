@@ -1,5 +1,5 @@
 ﻿from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,7 +17,7 @@ class SuccessEnvelope(BaseModel):
 class ErrorBody(BaseModel):
     code: str
     message: str
-    details: dict[str, Any] = Field(default_factory=dict)
+    details: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ErrorEnvelope(BaseModel):

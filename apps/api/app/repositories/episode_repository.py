@@ -1,3 +1,4 @@
+from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -24,7 +25,7 @@ class EpisodeRepository:
     def get(self, episode_id):
         return self.db.get(EpisodeModel, episode_id)
 
-    def list_for_project(self, project_id) -> list[EpisodeModel]:
+    def list_for_project(self, project_id) -> List[EpisodeModel]:
         stmt = select(EpisodeModel).where(EpisodeModel.project_id == project_id).order_by(EpisodeModel.episode_no.asc())
         return list(self.db.scalars(stmt).all())
 

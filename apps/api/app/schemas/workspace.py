@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -30,9 +30,9 @@ class DocumentSummaryResponse(BaseModel):
     document_type: str
     version: int
     status: DocumentStatus
-    title: str | None = None
-    summary_text: str | None = None
-    updated_at: datetime | None = None
+    title: Optional[str] = None
+    summary_text: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 
 class AssetSummaryResponse(BaseModel):
@@ -41,12 +41,12 @@ class AssetSummaryResponse(BaseModel):
     storage_key: str
     mime_type: str
     size_bytes: int
-    duration_ms: int | None = None
-    width: int | None = None
-    height: int | None = None
+    duration_ms: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
     is_selected: bool = False
     version: int = 1
-    created_at: datetime | None = None
+    created_at: Optional[datetime] = None
 
 
 class StageTaskSummaryResponse(BaseModel):
@@ -55,35 +55,35 @@ class StageTaskSummaryResponse(BaseModel):
     task_status: StageTaskStatus
     worker_kind: str
     review_required: bool = False
-    review_status: str | None = None
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    error_message: str | None = None
+    review_status: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    error_message: Optional[str] = None
 
 
 class ShotSummaryResponse(BaseModel):
-    id: UUID | None = None
+    id: Optional[UUID] = None
     code: str
-    shot_index: int | None = None
-    title: str | None = None
+    shot_index: Optional[int] = None
+    title: Optional[str] = None
     duration_ms: int
     status: str
-    stage_task_id: UUID | None = None
-    updated_at: datetime | None = None
+    stage_task_id: Optional[UUID] = None
+    updated_at: Optional[datetime] = None
 
 
 class SubmitReviewDecisionRequest(BaseModel):
     stage_task_id: UUID
     decision: ReviewDecisionType
-    decision_note: str | None = Field(default=None, max_length=1000)
+    decision_note: Optional[str] = Field(default=None, max_length=1000)
 
 
 class ReviewDecisionSummaryResponse(BaseModel):
     id: UUID
     status: ReviewDecisionType
-    decision_note: str | None = None
+    decision_note: Optional[str] = None
     stage_task_id: UUID
-    created_at: datetime | None = None
+    created_at: Optional[datetime] = None
 
 
 class QAReportSummaryResponse(BaseModel):
@@ -92,31 +92,31 @@ class QAReportSummaryResponse(BaseModel):
     result: QAResult
     severity: str
     issue_count: int
-    rerun_stage_type: str | None = None
-    created_at: datetime | None = None
+    rerun_stage_type: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 class WorkspaceQAResponse(BaseModel):
     result: QAResult
     issue_count: int
-    reports: list[QAReportSummaryResponse] = Field(default_factory=list)
+    reports: List[QAReportSummaryResponse] = Field(default_factory=list)
 
 
 class WorkspaceReviewResponse(BaseModel):
     status: ReviewSummaryStatus = "none"
     pending_count: int = 0
-    latest_decision: ReviewDecisionSummaryResponse | None = None
+    latest_decision: Optional[ReviewDecisionSummaryResponse] = None
 
 
 class EpisodeWorkspaceResponse(BaseModel):
     project: ProjectResponse
     episode: EpisodeResponse
-    documents: list[DocumentSummaryResponse] = Field(default_factory=list)
-    stage_tasks: list[StageTaskSummaryResponse] = Field(default_factory=list)
-    shots: list[ShotSummaryResponse] = Field(default_factory=list)
-    assets: list[AssetSummaryResponse] = Field(default_factory=list)
+    documents: List[DocumentSummaryResponse] = Field(default_factory=list)
+    stage_tasks: List[StageTaskSummaryResponse] = Field(default_factory=list)
+    shots: List[ShotSummaryResponse] = Field(default_factory=list)
+    assets: List[AssetSummaryResponse] = Field(default_factory=list)
     qa_summary: WorkspaceQAResponse
     review_summary: WorkspaceReviewResponse = Field(default_factory=WorkspaceReviewResponse)
-    latest_workflow: WorkflowRunResponse | None = None
+    latest_workflow: Optional[WorkflowRunResponse] = None
     generated_at: datetime
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)

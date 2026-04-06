@@ -1,4 +1,5 @@
-﻿from sqlalchemy import select
+﻿from typing import List, Optional
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import ProjectModel
@@ -22,7 +23,7 @@ class ProjectRepository:
         self.db.refresh(project)
         return project
 
-    def list(self) -> list[ProjectModel]:
+    def list(self) -> List[ProjectModel]:
         stmt = select(ProjectModel).order_by(ProjectModel.created_at.desc())
         return list(self.db.scalars(stmt).all())
 

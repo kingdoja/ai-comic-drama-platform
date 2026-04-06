@@ -1,5 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from typing import List, Optional
+from uuid import UUID
 
 from app.db.models import DocumentModel
 
@@ -18,7 +20,11 @@ class DocumentRepository:
             self.db.flush()
         return document
 
-    def list_for_episode(self, episode_id) -> list[DocumentModel]:
+    def get_by_id(self, document_id: UUID) -> Optional[DocumentModel]:
+        stmt = select(DocumentModel).where(DocumentModel.id == document_id)
+        return self.db.scalar(stmt)
+
+    def list_for_episode(self, episode_id) -> List[DocumentModel]:
         stmt = (
             select(DocumentModel)
             .where(DocumentModel.episode_id == episode_id)

@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -8,16 +9,63 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from app.services.text_workflow_service import TEXT_STAGE_SEQUENCE, TextWorkflowService
 
 
+class FakeQuery:
+    """Mock SQLAlchemy query object"""
+    def __init__(self, db, model_class):
+        self.db = db
+        self.model_class = model_class
+        self._filters = []
+    
+    def filter(self, *args):
+        """Mock filter method"""
+        self._filters.extend(args)
+        return self
+    
+    def filter_by(self, **kwargs):
+        """Mock filter_by method"""
+        self._filters.append(kwargs)
+        return self
+    
+    def first(self):
+        """Mock first method - returns None"""
+        return None
+
+
 class FakeDb:
     def __init__(self) -> None:
         self.commits = 0
         self.refreshed = []
+        self.flushes = 0
+        self.added = []
 
     def commit(self) -> None:
         self.commits += 1
 
     def refresh(self, obj) -> None:
         self.refreshed.append(obj)
+    
+    def flush(self) -> None:
+        self.flushes += 1
+    
+    def scalar(self, stmt):
+        """Return None for scalar queries (used for version lookups)"""
+        return None
+    
+    def add(self, obj):
+        """Track added objects"""
+        self.added.append(obj)
+    
+    def add_all(self, objs):
+        """Track multiple added objects"""
+        self.added.extend(objs)
+    
+    def get(self, model_class, id):
+        """Return None for get queries (used for object lookups)"""
+        return None
+    
+    def query(self, model_class):
+        """Return a mock query object"""
+        return FakeQuery(self, model_class)
 
 
 class FakeStageTaskRepository:
@@ -53,7 +101,7 @@ class FakeShotRepository:
     def latest_version_for_episode(self, episode_id) -> int:
         return self.version
 
-    def create_many(self, payloads: list[dict], commit: bool = True):
+    def create_many(self, payloads: List[Dict[str, Any]], commit: bool = True):
         shots = [SimpleNamespace(id=uuid4(), **payload) for payload in payloads]
         self.created_batches.append((commit, shots))
         if shots:

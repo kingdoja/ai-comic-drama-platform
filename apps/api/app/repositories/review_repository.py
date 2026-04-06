@@ -1,3 +1,4 @@
+from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,7 @@ class ReviewRepository:
             self.db.flush()
         return review
 
-    def list_for_episode(self, episode_id) -> list[ReviewDecisionModel]:
+    def list_for_episode(self, episode_id) -> List[ReviewDecisionModel]:
         stmt = (
             select(ReviewDecisionModel)
             .where(ReviewDecisionModel.episode_id == episode_id)
