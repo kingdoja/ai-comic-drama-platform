@@ -180,7 +180,7 @@ class DatabaseStore:
         review = self.review_service.submit_review_decision(project_id, episode_id, payload)
         return _to_review_summary(review)
 
-    def build_workspace(self, project_id, episode_id) -> EpisodeWorkspaceResponse | None:
+    def build_workspace(self, project_id, episode_id) -> Optional[EpisodeWorkspaceResponse]:
         project = self.get_project(project_id)
         episode = self.get_episode(episode_id)
         if not project or not episode:

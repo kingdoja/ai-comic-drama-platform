@@ -31,7 +31,44 @@ def get_db() -> Generator[Session, None, None]:
 
 ---
 
-### 2. 数据库连接超时
+### 2. TypeError: unsupported operand type(s) for |
+
+**错误信息**：
+```
+TypeError: unsupported operand type(s) for |: 'ModelMetaclass' and 'NoneType'
+```
+
+**原因**：
+Python 3.8 不支持使用 `X | Y` 语法表示联合类型（这是 Python 3.10+ 的特性）。
+
+**解决方案**：
+使用 `Optional[X]` 或 `Union[X, Y]` 替代：
+
+```python
+# ❌ 错误（Python 3.10+）
+def func() -> str | None:
+    ...
+
+def func2() -> int | str:
+    ...
+
+# ✅ 正确（Python 3.8+）
+from typing import Optional, Union
+
+def func() -> Optional[str]:
+    ...
+
+def func2() -> Union[int, str]:
+    ...
+```
+
+**已修复**：`apps/api/app/services/store.py`
+
+**检查工具**：运行 `python scripts/check_python38_compat.py` 检查兼容性问题
+
+---
+
+### 3. 数据库连接超时
 
 **错误信息**：
 ```
@@ -71,19 +108,35 @@ docker exec -it thinking-postgres-1 psql -U postgres -d thinking
 **错误信息**：
 ```
 ModuleNotFoundError: No module named 'app'
+INFO:     Stopping reloader process [22276]
 ```
 
 **原因**：
-未在正确的目录运行或虚拟环境未激活。
+在错误的目录运行 uvicorn 命令。uvicorn 必须在 `apps/api` 目录下运行，因为 `app` 模块在该目录下。
 
 **解决方案**：
 
-1. 确保在 `apps/api` 目录：
+1. **确保在正确的目录运行**：
 ```bash
+# ❌ 错误 - 在项目根目录
+D:\ai应用项目\thinking> uvicorn app.main:app --reload --port 8000
+
+# ✅ 正确 - 在 apps/api 目录
 cd apps/api
+uvicorn app.main:app --reload --port 8000
 ```
 
-2. 激活虚拟环境：
+2. 验证当前目录：
+```bash
+# Windows PowerShell
+pwd
+# 应该显示：...\thinking\apps\api
+
+# 检查 app 目录是否存在
+dir app
+```
+
+3. 如果虚拟环境未激活，先激活：
 ```bash
 # Windows PowerShell
 .venv\Scripts\Activate.ps1
@@ -92,7 +145,7 @@ cd apps/api
 source .venv/bin/activate
 ```
 
-3. 安装依赖：
+4. 确保依赖已安装：
 ```bash
 pip install -r requirements.txt
 ```
