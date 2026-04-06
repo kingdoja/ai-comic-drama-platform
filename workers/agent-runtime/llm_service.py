@@ -144,6 +144,17 @@ class QwenLLMService(BaseLLMService):
                 "Install with: pip install dashscope"
             )
         
+        # 禁用代理（避免代理配置问题）
+        os.environ['NO_PROXY'] = '*'
+        if 'HTTP_PROXY' in os.environ:
+            del os.environ['HTTP_PROXY']
+        if 'HTTPS_PROXY' in os.environ:
+            del os.environ['HTTPS_PROXY']
+        if 'http_proxy' in os.environ:
+            del os.environ['http_proxy']
+        if 'https_proxy' in os.environ:
+            del os.environ['https_proxy']
+        
         # 设置 API Key
         dashscope.api_key = self.api_key
         
