@@ -4,10 +4,12 @@ Character Agent - Generates character profiles with visual anchors.
 Implements Requirements: 4.1, 4.2, 4.3, 4.4
 """
 
+import json
 from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
 from base_agent import BaseAgent, DocumentRef, LockedRef, StageTaskInput, Warning
+from llm_service import LLMServiceFactory, LLMMessage
 
 
 class CharacterAgent(BaseAgent):
@@ -20,6 +22,22 @@ class CharacterAgent(BaseAgent):
     - 4.3: Mark visual_anchors as lockable
     - 4.4: Warn about missing visual anchors
     """
+    
+    def __init__(self, db_session=None, llm_service=None, validator=None):
+        """
+        Initialize Character Agent.
+        
+        Args:
+            db_session: Database session
+            llm_service: LLM service (if None, creates from environment)
+            validator: Validator component
+        """
+        # Create LLM service if not provided
+        if llm_service is None:
+            llm_service = LLMServiceFactory.create_from_env()
+        
+        super().__init__(db_session, llm_service, validator)
+        self._token_usage = 0
     
     def get_output_schema(self) -> Dict[str, Any]:
         """Get the JSON schema for character profile output."""
@@ -131,11 +149,53 @@ class CharacterAgent(BaseAgent):
         if not self.llm_service:
             raise RuntimeError("LLM service not configured")
         
-        return self.llm_service.generate(
-            prompt=plan["prompt"],
-            schema=plan["schema"],
-            temperature=plan["temperature"]
+        # Build system and user prompts
+        system_prompt = """你是一个专业的角色设计师和编剧。你的任务是为影视作品创建详细的角色档案，包含视觉锚点。
+
+你需要：
+1. 识别故事中的主要角色（2-4个）
+2. 为每个角色创建完整的档案（姓名、角色定位、目标、动机、说话风格、视觉锚点）
+3. 确保视觉锚点具体、独特、易于识别
+4. 角色之间要有清晰的关系和冲突
+
+请以 JSON 格式返回结果，确保所有字段都完整且有价值。"""
+        
+        user_prompt = plan["prompt"]
+        
+        # Call LLM
+        response = self.llm_service.generate_from_prompt(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=plan["temperature"],
+            max_tokens=3000
         )
+        
+        # Track token usage
+        self._token_usage = response.token_usage.get("total_tokens", 0)
+        
+        # Parse JSON response
+        try:
+            content = json.loads(response.content)
+            return content
+        except json.JSONDecodeError:
+            # If LLM didn't return valid JSON, try to extract it
+            content_str = response.content.strip()
+            
+            # Try to find JSON in markdown code blocks
+            if "```json" in content_str:
+                start = content_str.find("```json") + 7
+                end = content_str.find("```", start)
+                content_str = content_str[start:end].strip()
+            elif "```" in content_str:
+                start = content_str.find("```") + 3
+                end = content_str.find("```", start)
+                content_str = content_str[start:end].strip()
+            
+            try:
+                content = json.loads(content_str)
+                return content
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"LLM returned invalid JSON: {e}\nResponse: {response.content}")
     
     def critic(self, draft: Dict[str, Any], normalized: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Warning]]:
         """
@@ -257,7 +317,7 @@ class CharacterAgent(BaseAgent):
                 ],
                 "assets": [],
                 "quality_notes": ["Character profiles generated with lockable visual anchors"],
-                "token_usage": getattr(self.llm_service, "call_count", 1) * 500 if self.llm_service else 500
+                "token_usage": self._token_usage
             }
         
         from app.repositories.document_repository import DocumentRepository
@@ -309,32 +369,98 @@ class CharacterAgent(BaseAgent):
                 f"Generated {len(characters)} character profiles",
                 f"Lockable fields: {', '.join(lockable_fields)}"
             ],
-            "token_usage": self.llm_service.get_token_usage() if self.llm_service else 500
+            "token_usage": self._token_usage
         }
     
     def _build_prompt(self, normalized: Dict[str, Any]) -> str:
         """Build prompt for LLM."""
-        return f"""Based on the brief and story bible, create character profiles for the main characters.
+        schema = self.get_output_schema()
+        
+        world_rules_str = '\n'.join([f"  - {rule}" for rule in normalized.get('world_rules', [])])
+        if not world_rules_str:
+            world_rules_str = "  （无）"
+        
+        relationship_baseline = normalized.get('relationship_baseline', {})
+        if relationship_baseline:
+            rel_str = '\n'.join([f"  - {k}: {v}" for k, v in relationship_baseline.items()])
+        else:
+            rel_str = "  （无）"
+        
+        return f"""基于 Brief 和 Story Bible，创建主要角色的详细档案。
 
-Brief Information:
-- Genre: {normalized['genre']}
-- Main Conflict: {normalized['main_conflict']}
+【Brief 信息】
+- 故事类型：{normalized.get('genre', '未指定')}
+- 主要冲突：{normalized.get('main_conflict', '未指定')}
 
-Story Bible:
-- World Rules: {', '.join(normalized['world_rules'])}
-- Relationship Baseline: {normalized['relationship_baseline']}
+【Story Bible】
+- 世界规则：
+{world_rules_str}
 
-Generate character profiles that include:
-- Name
-- Role (protagonist, antagonist, supporting)
-- Goal
-- Motivation
-- Speaking style
-- Visual anchor (detailed description for image generation)
-- Personality traits
-- Relationships to other characters
+- 角色关系基线：
+{rel_str}
 
-Return as JSON matching the schema."""
+【输出要求】
+请以 JSON 格式返回，包含以下结构：
+
+{{
+  "characters": [
+    {{
+      "name": "角色姓名",
+      "role": "角色定位（主角/配角/反派等）",
+      "goal": "角色目标（想要达成什么）",
+      "motivation": "内在动机（为什么要这么做）",
+      "speaking_style": "说话风格（语气、用词特点、口头禅等）",
+      "visual_anchor": "视觉锚点（具体、独特、易识别的外貌特征，用于图像生成）",
+      "personality_traits": ["性格特征1", "性格特征2", "性格特征3"],
+      "relationships": {{
+        "与其他角色的关系": "关系描述"
+      }}
+    }}
+  ]
+}}
+
+【关键要求】
+1. 识别 2-4 个主要角色
+2. visual_anchor 必须具体详细（如："左眼角有一道细长疤痕，总是戴着父亲留下的银色怀表，黑色短发略显凌乱"）
+3. speaking_style 要有特色（如："语速快，喜欢用技术术语，紧张时会重复'等等'这个词"）
+4. 角色之间要有清晰的关系和冲突
+5. 至少有一个主角（protagonist）
+
+【示例输出】
+```json
+{{
+  "characters": [
+    {{
+      "name": "陈屿",
+      "role": "主角（程序员）",
+      "goal": "打破时间循环，阻止城市灾难",
+      "motivation": "证明自己的身份，找回失去的记忆和家人",
+      "speaking_style": "理性冷静，喜欢用逻辑分析问题，紧张时会下意识摸左手腕（原本戴表的位置）",
+      "visual_anchor": "左眼角有一道细长疤痕（童年事故留下），总是穿着深蓝色连帽衫，右手食指有轻微颤抖（长期编程导致），黑色短发略显凌乱",
+      "personality_traits": ["理性", "执着", "内向", "善于观察"],
+      "relationships": {{
+        "神秘女孩": "合作关系，但对她的真实身份充满疑惑",
+        "父亲": "复杂的情感纠葛，既怨恨又渴望理解"
+      }}
+    }},
+    {{
+      "name": "神秘女孩",
+      "role": "关键配角（回响体）",
+      "goal": "帮助主角找到真相",
+      "motivation": "完成未完成的使命，弥补过去的遗憾",
+      "speaking_style": "简洁克制，很少用第一人称，说话时眼神飘忽，像在回忆什么",
+      "visual_anchor": "半透明的身影（在特定光线下），穿着白色连衣裙（边缘有数字化像素闪烁），长发遮住右半边脸，左手腕有发光的数字编码",
+      "personality_traits": ["神秘", "冷静", "善良", "孤独"],
+      "relationships": {{
+        "陈屿": "引导者和协助者，但从不透露自己的秘密",
+        "事故": "与即将发生的事故有深刻联系"
+      }}
+    }}
+  ]
+}}
+```
+
+请根据 Brief 和 Story Bible 生成角色档案："""
     
     def _generate_summary(self, content: Dict[str, Any]) -> str:
         """Generate summary text for character profile."""
