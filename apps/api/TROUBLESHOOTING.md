@@ -10,215 +10,345 @@ TypeError: 'ABCMeta' object is not subscriptable
 ```
 
 **原因**：
-Python 3.8 不支持在类型注解中直接使用 `collections.abc.Generator[...]` 泛型语法。
+Python 3.8 不支持在类型注解中直接使用 `collections.abc.Generator`。
 
 **解决方案**：
-已修复。使用 `typing.Generator` 替代 `collections.abc.Generator`。
+使用 `typing.Generator` 替代：
 
 ```python
-# ❌ 错误（Python 3.8）
+# ❌ 错误
 from collections.abc import Generator
 def get_db() -> Generator[Session, None, None]:
     ...
 
-# ✅ 正确（Python 3.8+）
+# ✅ 正确
 from typing import Generator
 def get_db() -> Generator[Session, None, None]:
     ...
 ```
 
----
-
-### 2. ModuleNotFoundError: No module named 'xxx'
-
-**错误信息**：
-```
-ModuleNotFoundError: No module named 'pydantic_settings'
-ModuleNotFoundError: No module named 'fastapi'
-```
-
-**原因**：
-虚拟环境中缺少依赖包。
-
-**解决方案**：
-
-1. **确认虚拟环境已激活**：
-   ```bash
-   # 检查是否在虚拟环境中
-   which python  # Linux/Mac
-   where python  # Windows
-   
-   # 应该显示 .venv 路径
-   ```
-
-2. **重新安装依赖**：
-   ```bash
-   # 如果使用清华镜像有问题，切换到官方源
-   pip install -r requirements.txt -i https://pypi.org/simple
-   
-   # 或者使用阿里云镜像
-   pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
-   ```
-
-3. **验证安装**：
-   ```bash
-   python check_and_fix.py
-   ```
+**已修复**：`apps/api/app/db/session.py`
 
 ---
 
-### 3. 数据库连接错误
+### 2. 数据库连接超时
 
 **错误信息**：
 ```
 psycopg.errors.ConnectionTimeout: connection timeout expired
-sqlalchemy.exc.OperationalError: could not connect to server
 ```
 
 **原因**：
-PostgreSQL 数据库未启动或连接配置错误。
+PostgreSQL 数据库未启动或无法连接。
 
 **解决方案**：
 
-1. **启动 PostgreSQL**：
-   ```bash
-   cd infra/docker
-   docker-compose up -d postgres
-   ```
+1. 启动 PostgreSQL：
+```bash
+cd infra/docker
+docker-compose up -d postgres
+```
 
-2. **检查数据库状态**：
-   ```bash
-   docker-compose ps
-   ```
+2. 检查数据库状态：
+```bash
+docker-compose ps
+```
 
-3. **检查环境变量**：
-   ```bash
-   # 检查 .env 文件
-   cat apps/api/.env
-   
-   # 应该包含：
-   # DATABASE_URL=postgresql://postgres:postgres@localhost:5432/thinking
-   ```
+3. 查看数据库日志：
+```bash
+docker-compose logs postgres
+```
 
-4. **测试连接**：
-   ```bash
-   docker exec -it <postgres_container_id> psql -U postgres -d thinking
-   ```
+4. 验证连接：
+```bash
+docker exec -it thinking-postgres-1 psql -U postgres -d thinking
+```
 
 ---
 
-### 4. 端口被占用
+### 3. 模块导入错误
 
 **错误信息**：
 ```
-ERROR: [Errno 48] Address already in use
+ModuleNotFoundError: No module named 'app'
+```
+
+**原因**：
+未在正确的目录运行或虚拟环境未激活。
+
+**解决方案**：
+
+1. 确保在 `apps/api` 目录：
+```bash
+cd apps/api
+```
+
+2. 激活虚拟环境：
+```bash
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+# Linux/Mac
+source .venv/bin/activate
+```
+
+3. 安装依赖：
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 4. Alembic 迁移错误
+
+**错误信息**：
+```
+sqlalchemy.exc.ProgrammingError: relation "xxx" does not exist
+```
+
+**原因**：
+数据库迁移未执行。
+
+**解决方案**：
+
+1. 进入迁移目录：
+```bash
+cd infra/migrations
+```
+
+2. 运行迁移：
+```bash
+alembic upgrade head
+```
+
+3. 检查迁移状态：
+```bash
+alembic current
+```
+
+---
+
+### 5. 端口已被占用
+
+**错误信息**：
+```
+OSError: [WinError 10048] 通常每个套接字地址(协议/网络地址/端口)只允许使用一次
+```
+
+**原因**：
+端口 8000 已被其他进程占用。
+
+**解决方案**：
+
+1. 查找占用端口的进程（Windows）：
+```powershell
+netstat -ano | findstr :8000
+```
+
+2. 终止进程：
+```powershell
+taskkill /PID <进程ID> /F
+```
+
+3. 或使用其他端口：
+```bash
+uvicorn app.main:app --reload --port 8001
+```
+
+---
+
+### 6. 测试失败
+
+**错误信息**：
+```
+FAILED tests/test_xxx.py::test_xxx
 ```
 
 **解决方案**：
 
-1. **查找占用端口的进程**：
-   ```bash
-   # Linux/Mac
-   lsof -i :8000
-   
-   # Windows
-   netstat -ano | findstr :8000
-   ```
+1. 确保测试数据库可用：
+```bash
+# 检查 .env 文件中的 TEST_DATABASE_URL
+cat apps/api/.env
+```
 
-2. **使用不同端口**：
-   ```bash
-   uvicorn app.main:app --reload --port 8001
-   ```
+2. 运行单个测试：
+```bash
+pytest tests/test_xxx.py::test_xxx -v
+```
+
+3. 查看详细输出：
+```bash
+pytest tests/ -v -s
+```
+
+4. 跳过数据库测试：
+```bash
+pytest tests/ -v -k "not database"
+```
 
 ---
 
-## 完整启动流程
+### 7. Python 版本不兼容
 
-### 1. 环境准备
-
-```bash
-# 1. 启动基础设施
-cd infra/docker
-docker-compose up -d postgres redis minio
-
-# 2. 创建并激活虚拟环境
-cd ../../apps/api
-python -m venv .venv
-
-# Linux/Mac
-source .venv/bin/activate
-
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# Windows CMD
-.venv\Scripts\activate.bat
-
-# 3. 安装依赖
-pip install -r requirements.txt
-
-# 4. 运行诊断
-python check_and_fix.py
+**错误信息**：
+```
+SyntaxError: invalid syntax
 ```
 
-### 2. 数据库迁移
+**原因**：
+Python 版本低于 3.8。
 
+**解决方案**：
+
+1. 检查 Python 版本：
 ```bash
-cd ../../infra/migrations
-alembic upgrade head
+python --version
 ```
 
-### 3. 运行测试
+2. 升级到 Python 3.8+：
+- Windows: 从 [python.org](https://www.python.org/downloads/) 下载
+- Linux: `sudo apt install python3.8`
+- Mac: `brew install python@3.8`
 
+3. 重新创建虚拟环境：
 ```bash
-cd ../../apps/api
-pytest tests/ -v
+python3.8 -m venv .venv
 ```
-
-### 4. 启动服务
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-访问：http://localhost:8000/docs
 
 ---
 
-## Python 版本兼容性
+### 8. 依赖安装失败
 
-### Python 3.8
-- ✅ 支持
-- ⚠️  需要使用 `typing.Generator` 而非 `collections.abc.Generator`
-- ⚠️  某些类型注解语法受限
+**错误信息**：
+```
+ERROR: Could not find a version that satisfies the requirement xxx
+```
 
-### Python 3.9+
-- ✅ 完全支持
-- ✅ 更好的类型注解支持
-- ✅ 推荐使用
+**解决方案**：
+
+1. 升级 pip：
+```bash
+python -m pip install --upgrade pip
+```
+
+2. 清除缓存：
+```bash
+pip cache purge
+```
+
+3. 使用国内镜像（可选）：
+```bash
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
 
 ---
 
-## 依赖版本要求
+### 9. Docker 容器无法启动
 
-| 依赖 | 最低版本 | 推荐版本 |
-|------|---------|---------|
-| Python | 3.8 | 3.10+ |
-| FastAPI | 0.115.0 | latest |
-| SQLAlchemy | 2.0.36 | latest |
-| PostgreSQL | 14 | 16 |
-| pydantic | 2.8.0 | latest |
+**错误信息**：
+```
+Error response from daemon: driver failed programming external connectivity
+```
+
+**解决方案**：
+
+1. 检查端口冲突：
+```bash
+docker-compose ps
+netstat -ano | findstr :5432
+```
+
+2. 停止所有容器：
+```bash
+docker-compose down
+```
+
+3. 清理并重启：
+```bash
+docker-compose down -v
+docker-compose up -d
+```
+
+---
+
+### 10. 环境变量未加载
+
+**错误信息**：
+```
+KeyError: 'DATABASE_URL'
+```
+
+**原因**：
+`.env` 文件不存在或未正确加载。
+
+**解决方案**：
+
+1. 复制示例配置：
+```bash
+cp .env.example .env
+```
+
+2. 编辑 `.env` 文件填写正确的配置：
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/thinking
+```
+
+3. 确保 `python-dotenv` 已安装：
+```bash
+pip install python-dotenv
+```
+
+---
+
+## 调试技巧
+
+### 1. 启用详细日志
+
+在 `app/main.py` 中添加：
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### 2. 使用 Python 调试器
+
+```python
+import pdb; pdb.set_trace()
+```
+
+### 3. 检查数据库连接
+
+```python
+from app.db.session import engine
+with engine.connect() as conn:
+    result = conn.execute("SELECT 1")
+    print(result.fetchone())
+```
+
+### 4. 查看 SQLAlchemy 查询
+
+在 `app/db/session.py` 中：
+
+```python
+engine = create_engine(
+    settings.database_url,
+    future=True,
+    echo=True  # 打印所有 SQL 查询
+)
+```
 
 ---
 
 ## 获取帮助
 
-如果遇到其他问题：
+如果以上方法都无法解决问题：
 
-1. 查看日志输出
-2. 检查 `.env` 配置
-3. 运行 `python check_and_fix.py` 诊断
-4. 查看 `docs/engineering/` 技术文档
+1. 查看完整错误堆栈
+2. 检查相关日志文件
+3. 搜索错误信息
+4. 查看项目文档：`docs/engineering/`
 
 ---
 
