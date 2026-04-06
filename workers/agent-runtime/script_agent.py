@@ -4,10 +4,12 @@ Script Agent - Generates script draft from character profiles and story bible.
 Implements Requirements: 5.1, 5.2, 5.3, 5.4
 """
 
+import json
 from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
 from base_agent import BaseAgent, DocumentRef, LockedRef, StageTaskInput, Warning
+from llm_service import LLMServiceFactory, LLMMessage
 
 
 class ScriptAgent(BaseAgent):
@@ -20,6 +22,22 @@ class ScriptAgent(BaseAgent):
     - 5.3: Update episode script_version
     - 5.4: Check character behaviors against character_profile
     """
+    
+    def __init__(self, db_session=None, llm_service=None, validator=None):
+        """
+        Initialize Script Agent.
+        
+        Args:
+            db_session: Database session
+            llm_service: LLM service (if None, creates from environment)
+            validator: Validator component
+        """
+        # Create LLM service if not provided
+        if llm_service is None:
+            llm_service = LLMServiceFactory.create_from_env()
+        
+        super().__init__(db_session, llm_service, validator)
+        self._token_usage = 0
     
     def get_output_schema(self) -> Dict[str, Any]:
         """Get the JSON schema for script draft output."""
@@ -154,11 +172,54 @@ class ScriptAgent(BaseAgent):
         if not self.llm_service:
             raise RuntimeError("LLM service not configured")
         
-        return self.llm_service.generate(
-            prompt=plan["prompt"],
-            schema=plan["schema"],
-            temperature=plan["temperature"]
+        # Build system and user prompts
+        system_prompt = """你是一个专业的编剧和对话设计师。你的任务是为短视频创作详细的剧本，包含场景、对话和情感节奏。
+
+你需要：
+1. 根据角色档案和故事圣经创作剧本
+2. 每个场景包含场景号、地点、角色、对话、情感节奏
+3. 对话要符合角色的说话风格
+4. 控制总时长在目标范围内
+5. 确保情感节奏起伏有致
+
+请以 JSON 格式返回结果，确保所有字段都完整且有价值。"""
+        
+        user_prompt = plan["prompt"]
+        
+        # Call LLM with higher max_tokens for script generation
+        response = self.llm_service.generate_from_prompt(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=plan["temperature"],
+            max_tokens=4000
         )
+        
+        # Track token usage
+        self._token_usage = response.token_usage.get("total_tokens", 0)
+        
+        # Parse JSON response
+        try:
+            content = json.loads(response.content)
+            return content
+        except json.JSONDecodeError:
+            # If LLM didn't return valid JSON, try to extract it
+            content_str = response.content.strip()
+            
+            # Try to find JSON in markdown code blocks
+            if "```json" in content_str:
+                start = content_str.find("```json") + 7
+                end = content_str.find("```", start)
+                content_str = content_str[start:end].strip()
+            elif "```" in content_str:
+                start = content_str.find("```") + 3
+                end = content_str.find("```", start)
+                content_str = content_str[start:end].strip()
+            
+            try:
+                content = json.loads(content_str)
+                return content
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"LLM returned invalid JSON: {e}\nResponse: {response.content}")
     
     def critic(self, draft: Dict[str, Any], normalized: Dict[str, Any]) -> Tuple[Dict[str, Any], List[Warning]]:
         """
@@ -295,7 +356,7 @@ class ScriptAgent(BaseAgent):
                 ],
                 "assets": [],
                 "quality_notes": ["Script draft generated"],
-                "token_usage": getattr(self.llm_service, "call_count", 1) * 500 if self.llm_service else 500
+                "token_usage": self._token_usage
             }
         
         from app.repositories.document_repository import DocumentRepository
@@ -349,37 +410,141 @@ class ScriptAgent(BaseAgent):
                 f"Generated script with {scene_count} scenes",
                 f"Total estimated duration: {total_duration}s"
             ],
-            "token_usage": self.llm_service.get_token_usage() if self.llm_service else 500
+            "token_usage": self._token_usage
         }
     
     def _build_prompt(self, normalized: Dict[str, Any]) -> str:
         """Build prompt for LLM."""
-        char_names = [c.get("name", "") for c in normalized.get("characters", [])]
+        schema = self.get_output_schema()
         
-        return f"""Based on the brief, story bible, and character profiles, create a script draft.
+        # Format characters
+        char_list = []
+        for c in normalized.get('characters', []):
+            char_list.append(f"  - {c.get('name', '')}: {c.get('role', '')} - 说话风格：{c.get('speaking_style', '')}")
+        char_str = '\n'.join(char_list) if char_list else "  （无）"
+        
+        # Format world rules
+        world_rules_str = '\n'.join([f"  - {rule}" for rule in normalized.get('world_rules', [])])
+        if not world_rules_str:
+            world_rules_str = "  （无）"
+        
+        # Format forbidden conflicts
+        forbidden_str = '\n'.join([f"  - {fc}" for fc in normalized.get('forbidden_conflicts', [])])
+        if not forbidden_str:
+            forbidden_str = "  （无）"
+        
+        return f"""基于 Brief、Story Bible 和角色档案，创作一个完整的剧本草稿。
 
-Main Conflict: {normalized['main_conflict']}
-Target Duration: {normalized['target_duration_sec']} seconds
+【基本信息】
+- 主要冲突：{normalized.get('main_conflict', '未指定')}
+- 目标时长：{normalized.get('target_duration_sec', 60)} 秒
 
-Characters:
-{chr(10).join([f"- {c.get('name', '')}: {c.get('role', '')} - {c.get('speaking_style', '')}" for c in normalized.get('characters', [])])}
+【角色信息】
+{char_str}
 
-World Rules:
-{chr(10).join([f"- {rule}" for rule in normalized.get('world_rules', [])])}
+【世界规则】
+{world_rules_str}
 
-Forbidden Conflicts:
-{chr(10).join([f"- {fc}" for fc in normalized.get('forbidden_conflicts', [])])}
+【禁止冲突】
+{forbidden_str}
 
-Generate a script draft that includes:
-- Scene number, location, and characters present
-- Scene goal
-- Dialogue with character name, line, and emotion
-- Emotion beats for the scene
-- Duration estimate in seconds
+【输出要求】
+请以 JSON 格式返回，包含以下结构：
 
-Ensure character dialogue matches their speaking styles and the script respects forbidden conflicts.
+{{
+  "scenes": [
+    {{
+      "scene_no": 1,
+      "location": "场景地点",
+      "characters": ["角色1", "角色2"],
+      "goal": "本场景的目标（推动什么情节）",
+      "dialogue": [
+        {{
+          "character": "角色名",
+          "line": "台词内容",
+          "emotion": "情绪（如：紧张、愤怒、悲伤、喜悦等）"
+        }}
+      ],
+      "emotion_beats": ["情感节奏1", "情感节奏2"],
+      "duration_estimate_sec": 20
+    }}
+  ]
+}}
 
-Return as JSON matching the schema."""
+【关键要求】
+1. 创建 3-5 个场景，总时长控制在目标范围内
+2. 每个场景要有明确的目标和情感节奏
+3. 对话必须符合角色的说话风格
+4. 不能出现禁止冲突中列出的情节
+5. 场景之间要有逻辑连贯性
+6. duration_estimate_sec 要合理估算（一般对话 1 行约 3-5 秒）
+
+【示例输出】
+```json
+{{
+  "scenes": [
+    {{
+      "scene_no": 1,
+      "location": "梧桐路地铁站B出口",
+      "characters": ["陈屿"],
+      "goal": "展现主角意识到时间循环的困惑和恐慌",
+      "dialogue": [
+        {{
+          "character": "陈屿",
+          "line": "又是7点...又是这个闸机...这到底是怎么回事？",
+          "emotion": "困惑"
+        }},
+        {{
+          "character": "陈屿",
+          "line": "等等，我昨天也在这里醒来...不对，是每天都在这里！",
+          "emotion": "惊恐"
+        }}
+      ],
+      "emotion_beats": [
+        "从困惑到意识到异常",
+        "恐慌情绪逐渐升级"
+      ],
+      "duration_estimate_sec": 15
+    }},
+    {{
+      "scene_no": 2,
+      "location": "地铁站台",
+      "characters": ["陈屿", "神秘女孩"],
+      "goal": "主角首次注意到神秘女孩的异常",
+      "dialogue": [
+        {{
+          "character": "陈屿",
+          "line": "你...你也在这里？你是不是也...？",
+          "emotion": "试探"
+        }},
+        {{
+          "character": "神秘女孩",
+          "line": "循环第12天了。你终于注意到了。",
+          "emotion": "平静"
+        }},
+        {{
+          "character": "陈屿",
+          "line": "什么？你怎么知道...你到底是谁？",
+          "emotion": "震惊"
+        }},
+        {{
+          "character": "神秘女孩",
+          "line": "这不重要。重要的是，你父亲留下的东西。",
+          "emotion": "神秘"
+        }}
+      ],
+      "emotion_beats": [
+        "主角的试探和不确定",
+        "女孩的神秘感",
+        "主角的震惊和好奇"
+      ],
+      "duration_estimate_sec": 25
+    }}
+  ]
+}}
+```
+
+请根据提供的信息创作剧本："""
     
     def _generate_summary(self, content: Dict[str, Any]) -> str:
         """Generate summary text for script draft."""
