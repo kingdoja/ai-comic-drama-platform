@@ -2,23 +2,29 @@
 Services module - Contains service layer implementations.
 """
 
-from .llm_service import (
-    LLMService,
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from services.llm_service import (
+    BaseLLMService,
     LLMServiceFactory,
     LLMMessage,
     LLMResponse,
+    LLMProvider,
     QwenLLMService,
     OpenAILLMService,
     ClaudeLLMService,
 )
-from .mock_llm_service import MockLLMService
-from .validator import Validator, ValidationResult, ValidationError
+from services.mock_llm_service import MockLLMService
+from services.validator import Validator, ValidationResult, ValidationError
 
 __all__ = [
-    'LLMService',
+    'BaseLLMService',
     'LLMServiceFactory',
     'LLMMessage',
     'LLMResponse',
+    'LLMProvider',
     'QwenLLMService',
     'OpenAILLMService',
     'ClaudeLLMService',

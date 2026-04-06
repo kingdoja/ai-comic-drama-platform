@@ -6,7 +6,14 @@ Tests JSON schema validation, required field checking, and locked field protecti
 
 import pytest
 from uuid import uuid4
-from validator import Validator, LockedRef, ValidationError, ValidationResult
+import sys
+from pathlib import Path
+
+# 添加父目录到 Python 路径
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from services.validator import Validator, ValidationError, ValidationResult
+from agents.base_agent import LockedRef
 
 
 class TestValidator:

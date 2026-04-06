@@ -8,8 +8,12 @@ import json
 from typing import Any, Dict, List, Tuple
 from uuid import UUID
 
-from base_agent import BaseAgent, DocumentRef, LockedRef, StageTaskInput, Warning
-from llm_service import LLMServiceFactory, LLMMessage
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from agents.base_agent import BaseAgent, DocumentRef, LockedRef, StageTaskInput, Warning
+from services.llm_service import LLMServiceFactory, LLMMessage
 
 
 class StoryBibleAgent(BaseAgent):

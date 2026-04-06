@@ -14,20 +14,20 @@ import json
 from pathlib import Path
 from uuid import UUID, uuid4
 
-# 添加当前目录到 Python 路径
-sys.path.insert(0, str(Path(__file__).parent))
+# 添加父目录到 Python 路径
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 加载 .env
 try:
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent / ".env")
+    load_dotenv(Path(__file__).parent.parent / ".env")
     print("✓ 已加载 LLM 配置")
 except ImportError:
     print("⚠ python-dotenv 未安装，使用环境变量")
 
-from story_bible_agent import StoryBibleAgent
-from base_agent import StageTaskInput
-from llm_service import LLMServiceFactory
+from agents.story_bible_agent import StoryBibleAgent
+from agents.base_agent import StageTaskInput
+from services.llm_service import LLMServiceFactory
 
 
 def test_story_bible_agent():
