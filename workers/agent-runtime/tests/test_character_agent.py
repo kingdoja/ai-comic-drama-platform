@@ -25,9 +25,80 @@ try:
 except ImportError:
     print("⚠ python-dotenv 未安装，使用环境变量")
 
+import pytest
+
 from agents.character_agent import CharacterAgent
 from agents.base_agent import StageTaskInput
 from services.llm_service import LLMServiceFactory
+from services.mock_llm_service import MockLLMService
+
+
+# ── Pytest end-to-end tests (use MockLLMService, no real API calls) ──────────
+
+def _make_character_task_input() -> StageTaskInput:
+    """Build a minimal StageTaskInput for Character stage."""
+    return StageTaskInput(
+        workflow_run_id=uuid4(),
+        project_id=uuid4(),
+        episode_id=uuid4(),
+        stage_type="character",
+        input_refs=[],
+        locked_refs=[],
+        constraints={
+            "brief": {
+                "genre": "科幻悬疑",
+                "core_selling_points": ["时间循环", "双主角合作"],
+                "main_conflict": "主角必须在时间循环中找出真相并阻止灾难",
+            },
+            "story_bible": {
+                "world_rules": ["时间循环每24小时重置一次，只有主角保留记忆"],
+                "relationship_baseline": {"主角与女孩": "陌生人"},
+            },
+        },
+        target_ref_ids=[],
+        raw_material="",
+    )
+
+
+def test_character_agent_pipeline_succeeds():
+    """Character Agent end-to-end: full pipeline returns succeeded status."""
+    agent = CharacterAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_character_task_input())
+    assert result.status == "succeeded", f"Expected succeeded, got {result.status}: {result.error_message}"
+
+
+def test_character_agent_returns_document_refs():
+    """Character Agent end-to-end: result contains at least one document ref."""
+    agent = CharacterAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_character_task_input())
+    assert result.document_refs, "Expected at least one document ref in result"
+    assert result.document_refs[0].document_type == "character_profile"
+
+
+def test_character_agent_output_has_characters():
+    """Character Agent end-to-end: generator produces a non-empty characters list."""
+    agent = CharacterAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    task_input = _make_character_task_input()
+    context = agent.loader(task_input.input_refs, task_input.locked_refs)
+    normalized = agent.normalizer(context, task_input.constraints)
+    plan = agent.planner(normalized, task_input)
+    draft = agent.generator(plan)
+
+    assert "characters" in draft, "Output missing 'characters' key"
+    assert len(draft["characters"]) > 0, "Expected at least one character in output"
+
+    required_char_fields = ["name", "role", "goal", "motivation", "speaking_style", "visual_anchor"]
+    for char in draft["characters"]:
+        for field in required_char_fields:
+            assert field in char, f"Character missing required field '{field}'"
+
+
+def test_character_agent_metrics_present():
+    """Character Agent end-to-end: result metrics include duration_ms."""
+    agent = CharacterAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_character_task_input())
+    assert "duration_ms" in result.metrics
+    assert result.metrics["duration_ms"] >= 0
 
 
 def test_character_agent():

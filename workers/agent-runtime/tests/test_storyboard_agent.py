@@ -2,11 +2,16 @@
 Test for Storyboard Agent implementation.
 """
 
+import sys
+from pathlib import Path
 from uuid import UUID, uuid4
 
-from base_agent import DocumentRef, LockedRef, StageTaskInput
-from mock_llm_service import MockLLMService
-from storyboard_agent import StoryboardAgent
+# 添加父目录到 Python 路径
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from agents.base_agent import DocumentRef, LockedRef, StageTaskInput
+from services.mock_llm_service import MockLLMService
+from agents.storyboard_agent import StoryboardAgent
 
 
 def test_storyboard_agent_basic():
@@ -46,7 +51,7 @@ def test_storyboard_agent_basic():
 
 def test_storyboard_agent_schema():
     """Test storyboard agent output schema."""
-    agent = StoryboardAgent(db_session=None, llm_service=None, validator=None)
+    agent = StoryboardAgent(db_session=None, llm_service=MockLLMService(), validator=None)
     
     schema = agent.get_output_schema()
     

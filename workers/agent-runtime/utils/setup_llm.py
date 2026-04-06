@@ -36,8 +36,10 @@ def setup_env_file():
     """设置 .env 文件"""
     print_header("LLM 配置向导")
     
-    env_file = Path(__file__).parent / ".env"
-    env_example = Path(__file__).parent / ".env.example"
+    # 配置文件在根目录（utils 的父目录）
+    root_dir = Path(__file__).parent.parent
+    env_file = root_dir / ".env"
+    env_example = root_dir / ".env.example"
     
     # 检查是否已存在 .env
     if env_file.exists():
@@ -141,7 +143,8 @@ def test_connection():
     """测试连接"""
     print_step(5, "测试连接")
     
-    test_script = Path(__file__).parent / "test_llm_connection.py"
+    # 测试脚本在 tests 目录
+    test_script = Path(__file__).parent.parent / "tests" / "test_llm_connection.py"
     
     if not test_script.exists():
         print("✗ 测试脚本不存在")
@@ -157,7 +160,8 @@ def install_dependencies():
     """安装依赖"""
     print_header("安装依赖")
     
-    requirements = Path(__file__).parent / "requirements.txt"
+    # requirements.txt 在根目录
+    requirements = Path(__file__).parent.parent / "requirements.txt"
     
     if not requirements.exists():
         print("✗ requirements.txt 不存在")
@@ -192,8 +196,8 @@ def main():
     print("\n✓ LLM 服务已配置完成！")
     print(f"\n配置文件: {env_file}")
     print("\n下一步:")
-    print("  1. 查看 README_LLM.md 了解使用方法")
-    print("  2. 运行 python test_llm_connection.py 测试连接")
+    print("  1. 查看 docs/LLM.md 了解使用方法")
+    print("  2. 运行 python tests/test_llm_connection.py 测试连接")
     print("  3. 在 Agent 中使用 LLM 服务")
     print("\n祝你使用愉快！")
 

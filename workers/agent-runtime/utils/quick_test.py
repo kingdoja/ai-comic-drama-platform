@@ -40,7 +40,7 @@ print("测试通义千问连接")
 print("="*50)
 
 try:
-    from llm_service import QwenLLMService
+    from services.llm_service import QwenLLMService
     
     print("创建服务...")
     llm = QwenLLMService()

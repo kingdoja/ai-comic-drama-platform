@@ -11,6 +11,9 @@ import os
 import sys
 from pathlib import Path
 
+# 添加父目录到 Python 路径
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 print("="*60)
 print("代理问题诊断和修复")
 print("="*60)
@@ -45,7 +48,7 @@ print("  已设置 NO_PROXY=*")
 print("\n[3] 加载配置文件...")
 try:
     from dotenv import load_dotenv
-    env_file = Path(__file__).parent / ".env"
+    env_file = Path(__file__).parent.parent / ".env"
     load_dotenv(env_file)
     print(f"  ✓ 已加载: {env_file}")
 except ImportError:
@@ -64,7 +67,7 @@ print("\n[4] 测试通义千问连接...")
 print("="*60)
 
 try:
-    from llm_service import QwenLLMService
+    from services.llm_service import QwenLLMService
     
     llm = QwenLLMService()
     print(f"✓ 服务创建成功，模型: {llm.model}")

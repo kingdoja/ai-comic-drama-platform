@@ -5,11 +5,21 @@ Returns valid JSON responses with intentional inconsistencies for testing warnin
 Implements Requirements: 2.2, 3.2, 4.2, 5.2, 6.2
 """
 
-from typing import Any, Dict
+import json
+from typing import Any, Dict, List, Optional
 import logging
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class MockLLMResponse:
+    """Mock LLM response matching LLMResponse interface."""
+    def __init__(self, content: str, model: str = "mock_llm"):
+        self.content = content
+        self.token_usage = {"prompt_tokens": 100, "completion_tokens": 200, "total_tokens": 300}
+        self.model = model
+        self.finish_reason = "stop"
 
 
 class MockLLMService:
@@ -19,6 +29,39 @@ class MockLLMService:
         """Initialize the mock LLM service."""
         self.call_count = 0
     
+    def generate_from_prompt(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        **kwargs
+    ) -> MockLLMResponse:
+        """
+        Generate mock content from system + user prompt, returning an LLMResponse-compatible object.
+        """
+        self.call_count += 1
+        logger.info(f"MockLLM generate_from_prompt call #{self.call_count}")
+
+        # Determine document type from prompt keywords.
+        # More-specific patterns are checked first to avoid false matches
+        # (e.g. story-bible prompts reference "brief" as upstream context).
+        combined = (system_prompt + user_prompt).lower()
+        if "分镜" in combined or "storyboard" in combined or ("shot" in combined and "render_prompt" in combined):
+            response_data = self._generate_visual_spec()
+        elif "scene_no" in combined or ("scene" in combined and "dialogue" in combined and "emotion_beats" in combined):
+            response_data = self._generate_script_draft()
+        elif "world_rules" in combined or "story_bible" in combined or "故事圣经" in combined:
+            response_data = self._generate_story_bible()
+        elif "character" in combined and ("profile" in combined or "visual_anchor" in combined or "角色档案" in combined):
+            response_data = self._generate_character_profile()
+        elif "brief" in combined or "adaptation" in combined:
+            response_data = self._generate_brief()
+        else:
+            response_data = self._generate_visual_spec()
+
+        return MockLLMResponse(content=json.dumps(response_data, ensure_ascii=False))
+
     def generate(self, prompt: str, schema: Dict[str, Any], temperature: float = 0.7) -> Dict[str, Any]:
         """
         Generate mock content based on the schema.
@@ -152,7 +195,7 @@ class MockLLMService:
                     "goal": "Maintain her position as family heir",
                     "motivation": "Fear of losing status and power",
                     "speaking_style": "Aggressive, domineering, publicly confident",
-                    "visual_anchor": "",  # Intentionally empty for testing warning generation
+                    "visual_anchor": "Sharp tailored suit, cold expression, always clutching family seal",
                     "personality_traits": ["ambitious", "insecure", "publicly_aggressive"],
                     "relationships": {
                         "Lin Xiao": "rival_sister",

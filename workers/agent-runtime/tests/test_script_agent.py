@@ -25,9 +25,89 @@ try:
 except ImportError:
     print("⚠ python-dotenv 未安装，使用环境变量")
 
+import pytest
+
 from agents.script_agent import ScriptAgent
 from agents.base_agent import StageTaskInput
 from services.llm_service import LLMServiceFactory
+from services.mock_llm_service import MockLLMService
+
+
+# ── Pytest end-to-end tests (use MockLLMService, no real API calls) ──────────
+
+def _make_script_task_input() -> StageTaskInput:
+    """Build a minimal StageTaskInput for Script stage."""
+    return StageTaskInput(
+        workflow_run_id=uuid4(),
+        project_id=uuid4(),
+        episode_id=uuid4(),
+        stage_type="script",
+        input_refs=[],
+        locked_refs=[],
+        constraints={
+            "brief": {
+                "genre": "科幻悬疑",
+                "main_conflict": "主角必须在时间循环中找出真相并阻止灾难",
+            },
+            "story_bible": {
+                "world_rules": ["时间循环每24小时重置一次"],
+                "forbidden_conflicts": ["不能让主角轻易打破循环"],
+            },
+            "character_profile": {
+                "characters": [
+                    {
+                        "name": "陈屿",
+                        "role": "protagonist",
+                        "speaking_style": "理性冷静，喜欢用逻辑分析问题",
+                    }
+                ]
+            },
+            "target_duration_sec": 60,
+        },
+        target_ref_ids=[],
+        raw_material="",
+    )
+
+
+def test_script_agent_pipeline_succeeds():
+    """Script Agent end-to-end: full pipeline returns succeeded status."""
+    agent = ScriptAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_script_task_input())
+    assert result.status == "succeeded", f"Expected succeeded, got {result.status}: {result.error_message}"
+
+
+def test_script_agent_returns_document_refs():
+    """Script Agent end-to-end: result contains at least one document ref."""
+    agent = ScriptAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_script_task_input())
+    assert result.document_refs, "Expected at least one document ref in result"
+    assert result.document_refs[0].document_type == "script_draft"
+
+
+def test_script_agent_output_has_scenes():
+    """Script Agent end-to-end: generator produces a non-empty scenes list."""
+    agent = ScriptAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    task_input = _make_script_task_input()
+    context = agent.loader(task_input.input_refs, task_input.locked_refs)
+    normalized = agent.normalizer(context, task_input.constraints)
+    plan = agent.planner(normalized, task_input)
+    draft = agent.generator(plan)
+
+    assert "scenes" in draft, "Output missing 'scenes' key"
+    assert len(draft["scenes"]) > 0, "Expected at least one scene in output"
+
+    required_scene_fields = ["scene_no", "location", "characters", "dialogue", "emotion_beats"]
+    for scene in draft["scenes"]:
+        for field in required_scene_fields:
+            assert field in scene, f"Scene missing required field '{field}'"
+
+
+def test_script_agent_metrics_present():
+    """Script Agent end-to-end: result metrics include duration_ms."""
+    agent = ScriptAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_script_task_input())
+    assert "duration_ms" in result.metrics
+    assert result.metrics["duration_ms"] >= 0
 
 
 def test_script_agent():

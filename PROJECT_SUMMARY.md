@@ -276,7 +276,8 @@ cp .env.example .env
 ### 3. 测试 Brief Agent
 
 ```bash
-python test_brief_real_llm.py
+cd workers/agent-runtime
+python -m pytest tests/test_brief_agent.py -v
 ```
 
 ### 4. 启动 API 服务（需要 Docker）

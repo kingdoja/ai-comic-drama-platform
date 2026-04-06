@@ -24,9 +24,75 @@ try:
 except ImportError:
     print("⚠ python-dotenv 未安装")
 
+import pytest
+
 from agents.brief_agent import BriefAgent
 from agents.base_agent import StageTaskInput
 from services.llm_service import LLMServiceFactory
+from services.mock_llm_service import MockLLMService
+
+
+# ── Pytest end-to-end tests (use MockLLMService, no real API calls) ──────────
+
+def _make_brief_task_input() -> StageTaskInput:
+    """Build a minimal StageTaskInput for Brief stage."""
+    raw_material = (
+        "一个年轻的程序员发现自己被困在了一个时间循环中。"
+        "每天早上7点，他都会在同一个地铁站醒来，然后经历完全相同的一天。"
+    )
+    return StageTaskInput(
+        workflow_run_id=uuid4(),
+        project_id=uuid4(),
+        episode_id=uuid4(),
+        stage_type="brief",
+        input_refs=[],
+        locked_refs=[],
+        constraints={
+            "raw_material": raw_material,
+            "platform": "douyin",
+            "target_duration_sec": 60,
+            "target_audience": "18-35岁年轻观众",
+        },
+        target_ref_ids=[],
+        raw_material=raw_material,
+    )
+
+
+def test_brief_agent_pipeline_succeeds():
+    """Brief Agent end-to-end: full pipeline returns succeeded status."""
+    agent = BriefAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_brief_task_input())
+    assert result.status == "succeeded", f"Expected succeeded, got {result.status}: {result.error_message}"
+
+
+def test_brief_agent_returns_document_refs():
+    """Brief Agent end-to-end: result contains at least one document ref."""
+    agent = BriefAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_brief_task_input())
+    assert result.document_refs, "Expected at least one document ref in result"
+    assert result.document_refs[0].document_type == "brief"
+
+
+def test_brief_agent_output_has_required_fields():
+    """Brief Agent end-to-end: generator produces all required schema fields."""
+    agent = BriefAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    task_input = _make_brief_task_input()
+    context = agent.loader(task_input.input_refs, task_input.locked_refs)
+    normalized = agent.normalizer(context, task_input.constraints)
+    plan = agent.planner(normalized, task_input)
+    draft = agent.generator(plan)
+
+    required = agent.get_output_schema()["required"]
+    for field in required:
+        assert field in draft and draft[field], f"Required field '{field}' missing or empty in brief output"
+
+
+def test_brief_agent_metrics_present():
+    """Brief Agent end-to-end: result metrics include duration_ms."""
+    agent = BriefAgent(db_session=None, llm_service=MockLLMService(), validator=None)
+    result = agent.execute(_make_brief_task_input())
+    assert "duration_ms" in result.metrics
+    assert result.metrics["duration_ms"] >= 0
 
 
 def test_brief_agent():

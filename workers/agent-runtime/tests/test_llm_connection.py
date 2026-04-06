@@ -167,11 +167,11 @@ def main():
     print("="*60)
     
     # 检查 .env 文件
-    env_file = Path(__file__).parent / ".env"
+    env_file = Path(__file__).parent.parent / ".env"
     if not env_file.exists():
         print("\n⚠ 警告: .env 文件不存在")
         print("  请复制 .env.example 到 .env 并配置 API Key")
-        print(f"  cp {Path(__file__).parent}/.env.example {env_file}")
+        print(f"  cp {Path(__file__).parent.parent}/.env.example {env_file}")
     else:
         # 加载 .env 文件
         try:
