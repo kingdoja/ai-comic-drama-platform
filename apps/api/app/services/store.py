@@ -30,6 +30,9 @@ from app.schemas.workspace import (
     AssetSummaryResponse,
     DocumentSummaryResponse,
     EpisodeWorkspaceResponse,
+    FailedStageInfo,
+    MediaStatusResponse,
+    PrimaryAssetInfo,
     QAReportSummaryResponse,
     ReviewDecisionSummaryResponse,
     ShotSummaryResponse,
@@ -99,7 +102,11 @@ def _to_stage_task_summary(stage_task: StageTaskModel) -> StageTaskSummaryRespon
     )
 
 
-def _to_shot_summary(shot: ShotModel, visual_spec_doc_id: Optional[UUID] = None) -> ShotSummaryResponse:
+def _to_shot_summary(
+    shot: ShotModel,
+    visual_spec_doc_id: Optional[UUID] = None,
+    primary_assets: Optional[Dict[str, "PrimaryAssetInfo"]] = None,
+) -> ShotSummaryResponse:
     # Extract visual_constraints summary
     visual_constraints = shot.visual_constraints_jsonb or {}
     visual_constraints_summary = None
@@ -129,6 +136,7 @@ def _to_shot_summary(shot: ShotModel, visual_spec_doc_id: Optional[UUID] = None)
         stage_task_id=shot.stage_task_id,
         version=shot.version,
         updated_at=shot.updated_at,
+        primary_assets=primary_assets or {},
     )
 
 
@@ -151,6 +159,108 @@ def _to_review_summary(review: ReviewDecisionModel) -> ReviewDecisionSummaryResp
         decision_note=review.comment_text,
         stage_task_id=review.stage_task_id,
         created_at=review.created_at,
+    )
+
+
+def _build_primary_assets_for_shot(
+    shot_id: UUID,
+    all_assets: List[AssetModel],
+) -> Dict[str, PrimaryAssetInfo]:
+    """
+    Build a dict of primary (selected) assets keyed by asset_type for a shot.
+
+    Implements Requirement 15.2
+    """
+    result: Dict[str, PrimaryAssetInfo] = {}
+    for asset in all_assets:
+        if asset.shot_id == shot_id and asset.is_selected:
+            result[asset.asset_type] = PrimaryAssetInfo(
+                asset_id=asset.id,
+                asset_type=asset.asset_type,
+                storage_key=asset.storage_key,
+                mime_type=asset.mime_type,
+                duration_ms=asset.duration_ms,
+                width=asset.width,
+                height=asset.height,
+                created_at=asset.created_at,
+            )
+    return result
+
+
+# Media stage types that belong to the media pipeline
+_MEDIA_STAGE_TYPES = {"image_render", "subtitle", "tts", "edit_export_preview"}
+
+
+def _build_media_status(
+    stage_tasks: List[StageTaskModel],
+    all_assets: List[AssetModel],
+    latest_workflow: Optional["WorkflowRunModel"],
+) -> MediaStatusResponse:
+    """
+    Derive media pipeline status from stage tasks and assets.
+
+    Implements Requirements: 15.1, 15.3, 15.4, 15.5
+    """
+    media_tasks = [t for t in stage_tasks if t.stage_type in _MEDIA_STAGE_TYPES]
+
+    if not media_tasks:
+        return MediaStatusResponse(status="not_started")
+
+    # Collect failed stages for display (Requirement 15.5)
+    failed_stages = [
+        FailedStageInfo(
+            stage_type=t.stage_type,
+            stage_task_id=t.id,
+            error_message=t.error_message,
+            failed_at=t.finished_at,
+        )
+        for t in media_tasks
+        if t.task_status == "failed"
+    ]
+
+    # Determine running stage (Requirement 15.4)
+    running_task = next((t for t in media_tasks if t.task_status == "running"), None)
+    current_stage = running_task.stage_type if running_task else None
+
+    # Find preview asset
+    preview_asset = next(
+        (a for a in all_assets if a.asset_type in ("preview", "preview_video") and a.is_selected),
+        None,
+    )
+    # Fall back to any preview asset if none is selected
+    if preview_asset is None:
+        preview_asset = next(
+            (a for a in all_assets if a.asset_type in ("preview", "preview_video")),
+            None,
+        )
+
+    preview_url = preview_asset.storage_key if preview_asset else None
+    preview_asset_id = preview_asset.id if preview_asset else None
+    preview_duration_ms = preview_asset.duration_ms if preview_asset else None
+
+    # Determine overall media status
+    statuses = {t.task_status for t in media_tasks}
+    if "running" in statuses or "pending" in statuses:
+        status = "generating"
+    elif failed_stages and preview_asset is None:
+        # All failed, nothing produced
+        status = "failed"
+    elif failed_stages:
+        # Some failed but preview exists
+        status = "partial"
+    elif preview_asset is not None:
+        status = "ready"
+    else:
+        # Tasks succeeded but no preview yet (e.g. only image_render done)
+        status = "partial"
+
+    return MediaStatusResponse(
+        status=status,
+        current_stage=current_stage,
+        preview_url=preview_url,
+        preview_asset_id=preview_asset_id,
+        preview_duration_ms=preview_duration_ms,
+        failed_stages=failed_stages,
     )
 
 
@@ -217,6 +327,9 @@ class DatabaseStore:
         assets_source = selected_assets if selected_assets else self.assets.list_for_episode(episode_id)
         assets = [_to_asset_summary(item) for item in assets_source]
 
+        # Fetch all assets for primary_assets lookup (Requirement 15.2)
+        all_assets_models = self.assets.list_for_episode(episode_id)
+
         qa_reports = [_to_qa_summary(item) for item in self.qa_reports.list_for_episode(episode_id)]
         if latest_workflow:
             stage_task_models = self.stage_tasks.list_for_workflow(latest_workflow.id)
@@ -235,10 +348,17 @@ class DatabaseStore:
             visual_spec_docs.sort(key=lambda d: d.version, reverse=True)
             visual_spec_doc_id = visual_spec_docs[0].id
 
-        # Query shots once and include visual_spec reference
+        # Query shots and attach primary assets per shot (Requirements 15.2, 15.3)
         shot_models = self.shots.list_current_for_episode(episode_id)
-        shots = [_to_shot_summary(item, visual_spec_doc_id) for item in shot_models]
-        
+        shots = [
+            _to_shot_summary(
+                item,
+                visual_spec_doc_id,
+                _build_primary_assets_for_shot(item.id, all_assets_models),
+            )
+            for item in shot_models
+        ]
+
         reviews = [_to_review_summary(item) for item in self.reviews.list_for_episode(episode_id)]
 
         qa_result = "pending"
@@ -271,6 +391,10 @@ class DatabaseStore:
         else:
             review_summary = WorkspaceReviewResponse()
 
+        # Build media status from all stage tasks for the episode (Requirement 15.1)
+        all_stage_task_models = self.stage_tasks.list_for_episode(episode_id)
+        media_status = _build_media_status(all_stage_task_models, all_assets_models, latest_workflow)
+
         return EpisodeWorkspaceResponse(
             project=project,
             episode=episode,
@@ -285,6 +409,7 @@ class DatabaseStore:
             ),
             review_summary=review_summary,
             latest_workflow=_to_workflow_response(latest_workflow),
+            media_status=media_status,
             generated_at=datetime.now(timezone.utc),
             metadata={
                 "mode": "database-backed-workspace",

@@ -24,6 +24,9 @@ StageTaskStatus = Literal["pending", "running", "succeeded", "failed", "skipped"
 ReviewDecisionType = Literal["approved", "rejected", "request_changes"]
 ReviewSummaryStatus = Literal["none", "pending", "approved", "rejected", "request_changes"]
 
+# Media status for the episode media pipeline
+MediaStatus = Literal["not_started", "generating", "ready", "partial", "failed"]
+
 
 class DocumentSummaryResponse(BaseModel):
     id: UUID
@@ -47,6 +50,40 @@ class AssetSummaryResponse(BaseModel):
     is_selected: bool = False
     version: int = 1
     created_at: Optional[datetime] = None
+
+
+class PrimaryAssetInfo(BaseModel):
+    """Primary (selected) asset info for a shot, keyed by asset_type."""
+    asset_id: UUID
+    asset_type: str
+    storage_key: str
+    mime_type: str
+    duration_ms: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class FailedStageInfo(BaseModel):
+    """Information about a failed media stage for display and retry."""
+    stage_type: str
+    stage_task_id: UUID
+    error_message: Optional[str] = None
+    failed_at: Optional[datetime] = None
+
+
+class MediaStatusResponse(BaseModel):
+    """
+    Media pipeline status for an episode.
+
+    Implements Requirements: 15.1, 15.4, 15.5
+    """
+    status: MediaStatus = "not_started"
+    current_stage: Optional[str] = None
+    preview_url: Optional[str] = None
+    preview_asset_id: Optional[UUID] = None
+    preview_duration_ms: Optional[int] = None
+    failed_stages: List[FailedStageInfo] = Field(default_factory=list)
 
 
 class StageTaskSummaryResponse(BaseModel):
@@ -79,6 +116,8 @@ class ShotSummaryResponse(BaseModel):
     stage_task_id: Optional[UUID] = None
     version: int = 1
     updated_at: Optional[datetime] = None
+    # Primary assets per type (keyframe, audio, etc.) — Requirement 15.2
+    primary_assets: Dict[str, PrimaryAssetInfo] = Field(default_factory=dict)
 
 
 class SubmitReviewDecisionRequest(BaseModel):
@@ -127,5 +166,7 @@ class EpisodeWorkspaceResponse(BaseModel):
     qa_summary: WorkspaceQAResponse
     review_summary: WorkspaceReviewResponse = Field(default_factory=WorkspaceReviewResponse)
     latest_workflow: Optional[WorkflowRunResponse] = None
+    # Media pipeline status — Requirement 15.1, 15.3, 15.5
+    media_status: MediaStatusResponse = Field(default_factory=MediaStatusResponse)
     generated_at: datetime
     metadata: Dict[str, Any] = Field(default_factory=dict)
