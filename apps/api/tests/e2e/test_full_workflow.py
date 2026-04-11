@@ -203,7 +203,7 @@ def test_full_workflow():
         traceback.print_exc()
         return False
     
-    # 9. 执行完整工作流
+    # 9. 执行完整工作流（带自动审核）
     print("\n[9] 执行完整文本工作流...")
     print("  这将依次执行:")
     print("    - Brief Agent")
@@ -214,23 +214,88 @@ def test_full_workflow():
     print("\n  预计耗时: 2-3 分钟，请耐心等待...\n")
     
     try:
-        result = workflow_service.execute_text_chain(
-            project=project,
-            episode=episode,
-            workflow=workflow,
-            start_stage="brief"
-        )
+        from app.repositories.review_repository import ReviewRepository
         
-        if result["workflow_status"] == "waiting_review":
-            print("\n✓ 工作流执行成功！")
-            print(f"  状态: {result.get('workflow_status', 'unknown')}")
-            if "paused_at_stage" in result:
-                print(f"  暂停于: {result.get('paused_at_stage', 'unknown')}")
+        review_repo = ReviewRepository(db)
+        current_stage = "brief"
+        max_iterations = 10  # 防止无限循环
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
             
-        else:
-            print(f"\n✗ 工作流执行失败")
-            print(f"  状态: {result.get('workflow_status', 'unknown')}")
-            print(f"  错误信息: {result.get('error', 'unknown')}")
+            # 执行工作流
+            result = workflow_service.execute_text_chain(
+                project=project,
+                episode=episode,
+                workflow=workflow,
+                start_stage=current_stage
+            )
+            
+            # 检查工作流状态
+            if result["workflow_status"] == "waiting_review":
+                paused_stage = result.get("paused_at_stage")
+                print(f"  ✓ {paused_stage} 阶段完成，等待审核...")
+                
+                # 自动批准审核
+                print(f"  → 自动批准 {paused_stage} 审核...")
+                
+                # 查找需要审核的 stage_task
+                stage_task = stage_task_repo.latest_by_stage(
+                    episode_id=episode_id,
+                    stage_type=paused_stage
+                )
+                
+                if stage_task and stage_task.review_status == "pending":
+                    # 创建审核记录并批准
+                    review = review_repo.create(
+                        stage_task_id=stage_task.id,
+                        project_id=stage_task.project_id,
+                        episode_id=stage_task.episode_id,
+                        decision="approved",
+                        comment_text="自动测试批准",
+                        payload_jsonb={},
+                        commit=False
+                    )
+                    
+                    # 更新 stage_task 状态
+                    stage_task.review_status = "approved"
+                    stage_task.task_status = "succeeded"
+                    
+                    # 更新工作流状态为运行中
+                    workflow.status = "running"
+                    
+                    db.commit()
+                    print(f"  ✓ {paused_stage} 审核已批准")
+                    
+                    # 确定下一个阶段
+                    stage_sequence = ["brief", "story_bible", "character_profile", "script", "storyboard"]
+                    current_index = stage_sequence.index(paused_stage)
+                    
+                    if current_index + 1 < len(stage_sequence):
+                        current_stage = stage_sequence[current_index + 1]
+                        print(f"  → 继续执行 {current_stage} 阶段...")
+                    else:
+                        print("\n✓ 所有阶段执行完成！")
+                        break
+                else:
+                    print(f"  ✗ 未找到待审核的 stage_task")
+                    break
+                    
+            elif result["workflow_status"] == "completed":
+                print("\n✓ 工作流执行成功！")
+                break
+                
+            elif result["workflow_status"] == "failed":
+                print(f"\n✗ 工作流执行失败")
+                print(f"  错误信息: {result.get('error', 'unknown')}")
+                return False
+            else:
+                print(f"\n✗ 未知的工作流状态: {result['workflow_status']}")
+                break
+        
+        if iteration >= max_iterations:
+            print("\n✗ 达到最大迭代次数，工作流可能存在问题")
             return False
             
     except Exception as e:

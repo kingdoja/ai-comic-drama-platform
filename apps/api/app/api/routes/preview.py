@@ -8,6 +8,7 @@ Implements Requirements:
 - 14.5: Show preview metadata (duration, resolution, generation time)
 """
 import logging
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -41,7 +42,7 @@ _MEDIA_STAGE_SEQUENCE = [
 _TERMINAL_STATUSES = {"succeeded", "failed", "skipped"}
 
 
-def _get_preview_url(storage_key: str, store: DatabaseStore) -> str | None:
+def _get_preview_url(storage_key: str, store: DatabaseStore) -> Optional[str]:
     """
     Generate a presigned URL for a preview asset's storage key.
     Returns None if the storage service is unavailable.

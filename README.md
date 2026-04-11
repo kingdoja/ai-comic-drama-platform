@@ -402,11 +402,20 @@ npm run dev
 - **[故障排查指南](apps/api/TROUBLESHOOTING.md)** - 常见问题解决
 - **[端到端测试指南](apps/api/E2E_TEST_GUIDE.md)** - 如何运行测试
 
+### 完整文档
+- **[📖 文档中心 (docs/README.md)](docs/README.md)** - 所有文档的索引和导航
+- **[项目总结 (docs/PROJECT_SUMMARY.md)](docs/PROJECT_SUMMARY.md)** - 项目核心信息汇总
+- **[项目状态分析 (docs/PROJECT_STATUS_ANALYSIS.md)](docs/PROJECT_STATUS_ANALYSIS.md)** - 当前进度和状态
+
 ### 工程文档
 - **[系统架构蓝图](docs/engineering/SYSTEM-BLUEPRINT.md)** - 系统设计总图
 - **[交付计划](docs/engineering/DELIVERY-PLAN.md)** - 开发路线图和迭代计划
 - **[Iteration 2 完成总结](docs/engineering/ITERATION2_NEXT_STEPS.md)** - 当前进度和下一步
 - **[工程文档索引](docs/engineering/README.md)** - 完整文档列表
+
+### 部署和运维
+- **[部署指南](docs/deployment/DEPLOYMENT.md)** - 生产环境部署
+- **[GitHub 设置](docs/deployment/GITHUB_SETUP.md)** - 代码仓库配置
 
 ### 产品和设计
 - **产品规格**：`docs/product/` - 产品愿景、MVP 计划、PRD

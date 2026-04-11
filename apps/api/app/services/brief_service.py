@@ -14,9 +14,9 @@ from sqlalchemy.orm import Session
 agent_runtime_path = Path(__file__).parent.parent.parent.parent.parent / "workers" / "agent-runtime"
 sys.path.insert(0, str(agent_runtime_path))
 
-from brief_agent import BriefAgent
-from base_agent import StageTaskInput
-from llm_service import LLMServiceFactory
+from agents.brief_agent import BriefAgent
+from agents.base_agent import StageTaskInput
+from services.llm_service import LLMServiceFactory
 
 from app.repositories.document_repository import DocumentRepository
 
