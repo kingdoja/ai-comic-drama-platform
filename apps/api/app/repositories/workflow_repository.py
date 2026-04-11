@@ -45,6 +45,15 @@ class WorkflowRepository:
         )
         return self.db.scalars(stmt).first()
 
+    def list_for_episode(self, episode_id):
+        """List all workflow runs for an episode."""
+        stmt = (
+            select(WorkflowRunModel)
+            .where(WorkflowRunModel.episode_id == episode_id)
+            .order_by(WorkflowRunModel.started_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
     def update_status(self, workflow_id, status: str, commit: bool = True, **updates):
         workflow = self.db.get(WorkflowRunModel, workflow_id)
         if workflow is None:

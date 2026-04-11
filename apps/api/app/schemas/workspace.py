@@ -147,6 +147,8 @@ class QAReportSummaryResponse(BaseModel):
 class WorkspaceQAResponse(BaseModel):
     result: QAResult
     issue_count: int
+    critical_issue_count: int = 0
+    has_critical_issues: bool = False
     reports: List[QAReportSummaryResponse] = Field(default_factory=list)
 
 
@@ -165,6 +167,7 @@ class EpisodeWorkspaceResponse(BaseModel):
     assets: List[AssetSummaryResponse] = Field(default_factory=list)
     qa_summary: WorkspaceQAResponse
     review_summary: WorkspaceReviewResponse = Field(default_factory=WorkspaceReviewResponse)
+    rerun_count: int = 0
     latest_workflow: Optional[WorkflowRunResponse] = None
     # Media pipeline status — Requirement 15.1, 15.3, 15.5
     media_status: MediaStatusResponse = Field(default_factory=MediaStatusResponse)

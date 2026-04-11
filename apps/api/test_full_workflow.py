@@ -32,6 +32,8 @@ from app.repositories.project_repository import ProjectRepository
 from app.repositories.episode_repository import EpisodeRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.workflow_repository import WorkflowRepository
+from app.repositories.stage_task_repository import StageTaskRepository
+from app.repositories.shot_repository import ShotRepository
 
 # 导入 Agent Runtime
 from services.llm_service import LLMServiceFactory
@@ -178,8 +180,31 @@ def test_full_workflow():
         traceback.print_exc()
         return False
     
-    # 8. 执行完整工作流
-    print("\n[8] 执行完整文本工作流...")
+    # 8. 创建工作流记录
+    print("\n[8] 创建工作流记录...")
+    try:
+        from app.schemas.workflow import StartEpisodeWorkflowRequest
+        
+        workflow_payload = StartEpisodeWorkflowRequest(
+            start_stage="brief"
+        )
+        
+        workflow = workflow_repo.create(
+            project_id=project_id,
+            episode_id=episode_id,
+            payload=workflow_payload,
+            workflow_kind="episode",
+            commit=True
+        )
+        print(f"✓ 工作流创建成功: {workflow.id}")
+    except Exception as e:
+        print(f"✗ 工作流创建失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    # 9. 执行完整工作流
+    print("\n[9] 执行完整文本工作流...")
     print("  这将依次执行:")
     print("    - Brief Agent")
     print("    - Story Bible Agent")
@@ -190,23 +215,22 @@ def test_full_workflow():
     
     try:
         result = workflow_service.execute_text_chain(
-            project_id=project_id,
-            episode_id=episode_id,
-            raw_material=raw_material,
-            platform="douyin",
-            target_duration_sec=60,
-            target_audience="18-35岁年轻观众"
+            project=project,
+            episode=episode,
+            workflow=workflow,
+            start_stage="brief"
         )
         
-        if result["status"] == "succeeded":
+        if result["workflow_status"] == "waiting_review":
             print("\n✓ 工作流执行成功！")
-            print(f"  总耗时: {result.get('total_duration_ms', 0)} ms")
-            print(f"  总 Token: {result.get('total_tokens', 0)}")
+            print(f"  状态: {result.get('workflow_status', 'unknown')}")
+            if "paused_at_stage" in result:
+                print(f"  暂停于: {result.get('paused_at_stage', 'unknown')}")
             
         else:
             print(f"\n✗ 工作流执行失败")
-            print(f"  失败阶段: {result.get('failed_stage', 'unknown')}")
-            print(f"  错误信息: {result.get('error_message', 'unknown')}")
+            print(f"  状态: {result.get('workflow_status', 'unknown')}")
+            print(f"  错误信息: {result.get('error', 'unknown')}")
             return False
             
     except Exception as e:
@@ -215,12 +239,12 @@ def test_full_workflow():
         traceback.print_exc()
         return False
     
-    # 9. 查询生成的文档
-    print("\n[9] 查询生成的文档...")
+    # 10. 查询生成的文档
+    print("\n[10] 查询生成的文档...")
     try:
         doc_repo = DocumentRepository(db)
         
-        documents = doc_repo.list_by_episode(episode_id)
+        documents = doc_repo.list_for_episode(episode_id)
         
         print(f"✓ 找到 {len(documents)} 个文档:")
         for doc in documents:
@@ -230,8 +254,8 @@ def test_full_workflow():
         print(f"✗ 文档查询失败: {e}")
         return False
     
-    # 10. 显示 Brief 内容
-    print("\n[10] Brief 内容预览:")
+    # 11. 显示 Brief 内容
+    print("\n[11] Brief 内容预览:")
     print("="*70)
     try:
         brief_doc = next((d for d in documents if d.document_type == "brief"), None)
@@ -251,8 +275,8 @@ def test_full_workflow():
     except Exception as e:
         print(f"✗ Brief 显示失败: {e}")
     
-    # 11. 显示角色信息
-    print("\n[11] 角色信息预览:")
+    # 12. 显示角色信息
+    print("\n[12] 角色信息预览:")
     print("="*70)
     try:
         char_doc = next((d for d in documents if d.document_type == "character_profile"), None)
@@ -272,8 +296,8 @@ def test_full_workflow():
     except Exception as e:
         print(f"✗ 角色显示失败: {e}")
     
-    # 12. 显示场景信息
-    print("\n[12] 剧本信息预览:")
+    # 13. 显示场景信息
+    print("\n[13] 剧本信息预览:")
     print("="*70)
     try:
         script_doc = next((d for d in documents if d.document_type == "script_draft"), None)
@@ -293,8 +317,8 @@ def test_full_workflow():
     except Exception as e:
         print(f"✗ 剧本显示失败: {e}")
     
-    # 13. 显示镜头信息
-    print("\n[13] 分镜信息预览:")
+    # 14. 显示镜头信息
+    print("\n[14] 分镜信息预览:")
     print("="*70)
     try:
         storyboard_doc = next((d for d in documents if d.document_type == "visual_spec"), None)

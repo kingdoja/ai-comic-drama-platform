@@ -158,28 +158,40 @@
     - _需求: 5.1, 5.2, 5.3, 5.4, 5.5_
 
 
-- [ ] 5. Workflow Rerun 功能
-  - [ ] 5.1 创建 Rerun Service
+- [x] 5. Workflow Rerun 功能
+
+
+
+
+  - [x] 5.1 创建 Rerun Service
+
+
     - 创建 RerunService 类
     - 实现 rerun_workflow 方法
     - 实现 get_rerun_history 方法
     - _需求: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 5.2 实现 Rerun WorkflowRun 创建
+
+  - [x] 5.2 实现 Rerun WorkflowRun 创建
+
     - 创建新 WorkflowRun
     - 设置 rerun_from_stage 字段
     - 设置 parent_workflow_run_id
     - 记录 rerun_reason
     - _需求: 7.1, 7.2_
 
-  - [ ] 5.3 实现 Rerun 执行逻辑
+  - [x] 5.3 实现 Rerun 执行逻辑
+
+
     - 从 rerun_from_stage 开始执行
     - 执行所有后续 Stage
     - 保留之前 Stage 的产物
     - 生成新版本产物
     - _需求: 7.3, 7.4, 9.1, 9.2_
 
-  - [ ] 5.4 实现数据保护机制
+  - [x] 5.4 实现数据保护机制
+
+
     - 使用数据库事务
     - 失败时回滚更改
     - 不覆盖现有数据
@@ -193,20 +205,30 @@
     - 测试失败处理
     - _需求: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 6. Shot 级别 Rerun
-  - [ ] 6.1 实现 Shot Rerun 方法
+- [x] 6. Shot 级别 Rerun
+
+
+
+
+  - [x] 6.1 实现 Shot Rerun 方法
+
+
     - 实现 rerun_shots 方法
     - 接收 shot_ids 参数
     - 创建 rerun WorkflowRun
     - _需求: 8.1, 8.2_
 
-  - [ ] 6.2 实现 Shot 过滤逻辑
+
+  - [x] 6.2 实现 Shot 过滤逻辑
+
     - 只处理指定的 Shot
     - 跳过其他 Shot
     - 保留其他 Shot 的 Asset
     - _需求: 8.2, 8.3_
 
-  - [ ] 6.3 实现批量 Shot Rerun
+
+  - [x] 6.3 实现批量 Shot Rerun
+
     - 支持多个 Shot 同时 rerun
     - 并行处理 Shot
     - 聚合结果
@@ -219,84 +241,135 @@
     - _需求: 8.1, 8.2, 8.3, 8.4, 8.5_
 
 
-- [ ] 7. QA 报告 API
-  - [ ] 7.1 创建 QA 报告查询端点
+- [x] 7. QA 报告 API
+
+
+
+
+
+  - [x] 7.1 创建 QA 报告查询端点
+
+
     - GET /episodes/{episode_id}/qa-reports
     - 返回所有 QA 报告
     - 按时间倒序排列
     - _需求: 10.1, 10.5_
 
-  - [ ] 7.2 创建 QA 报告详情端点
+  - [x] 7.2 创建 QA 报告详情端点
+
     - GET /qa-reports/{report_id}
     - 返回报告详情
     - 包含所有 issues
     - _需求: 10.2, 10.3_
 
-  - [ ] 7.3 实现 QA 报告 Schema
+  - [x] 7.3 实现 QA 报告 Schema
+
+
     - 定义 QAReportResponse
     - 定义 IssueDetail
     - 定义 QAReportList
     - _需求: 10.1, 10.2, 10.3_
 
-- [ ] 8. Review API
-  - [ ] 8.1 创建审核提交端点
+- [x] 8. Review API
+
+
+
+
+
+  - [x] 8.1 创建审核提交端点
+
+
     - POST /stage-tasks/{stage_task_id}/review
     - 接收 decision 和 comment
     - 创建 ReviewDecision
     - _需求: 11.3, 6.1, 6.2_
 
-  - [ ] 8.2 创建审核历史查询端点
+
+  - [x] 8.2 创建审核历史查询端点
+
     - GET /episodes/{episode_id}/reviews
     - 返回所有审核记录
     - 按时间倒序排列
     - _需求: 12.1, 12.2_
 
-  - [ ] 8.3 实现 Review Schema
+  - [x] 8.3 实现 Review Schema
+
+
     - 定义 ReviewSubmitRequest
     - 定义 ReviewDecisionResponse
     - 定义 ReviewHistoryResponse
     - _需求: 11.3, 6.1_
 
-- [ ] 9. Rerun API
-  - [ ] 9.1 创建 Workflow Rerun 端点
+- [x] 9. Rerun API
+
+
+
+
+  - [x] 9.1 创建 Workflow Rerun 端点
+
+
     - POST /episodes/{episode_id}/rerun
     - 接收 from_stage 参数
     - 创建 rerun WorkflowRun
     - _需求: 7.1, 7.2_
 
-  - [ ] 9.2 创建 Shot Rerun 端点
+  - [x] 9.2 创建 Shot Rerun 端点
+
     - POST /episodes/{episode_id}/rerun-shots
     - 接收 shot_ids 和 stage_type
     - 创建 Shot rerun WorkflowRun
     - _需求: 8.1, 8.2_
 
-  - [ ] 9.3 创建 Rerun 历史查询端点
+  - [x] 9.3 创建 Rerun 历史查询端点
+
     - GET /episodes/{episode_id}/rerun-history
     - 返回所有 rerun 记录
     - 标识 rerun 类型
     - _需求: 12.1, 12.2, 12.3_
 
-  - [ ] 9.4 实现 Rerun Schema
+  - [x] 9.4 实现 Rerun Schema
+
+
     - 定义 RerunWorkflowRequest
     - 定义 RerunShotsRequest
     - 定义 RerunHistoryResponse
     - _需求: 7.1, 8.1, 12.1_
 
 
-- [ ] 10. Workspace 集成
-  - [ ] 10.1 更新 Workspace 聚合逻辑
+- [x] 10. Workspace 集成
+
+
+
+
+
+
+
+
+  - [x] 10.1 更新 Workspace 聚合逻辑
+
+
+
+
     - 包含 QA 报告摘要
     - 包含 Review 状态
     - 包含 Rerun 历史
     - _需求: 11.1, 15.1_
 
-  - [ ] 10.2 更新 Workspace Schema
+
+  - [x] 10.2 更新 Workspace Schema
+
+
+
     - 添加 qa_summary 字段
     - 添加 review_status 字段
     - 添加 rerun_count 字段
     - _需求: 11.1, 15.1_
 
-  - [ ] 10.3 实现 QA 失败提示
+  - [x] 10.3 实现 QA 失败提示
+
+
+
+
     - 在 Workspace 显示 QA 失败
     - 高亮 critical 问题
     - 提供查看详情入口
@@ -308,45 +381,76 @@
     - 测试 Rerun 历史展示
     - _需求: 11.1, 15.1_
 
-- [ ] 11. 数据库 Migration
-  - [ ] 11.1 扩展 WorkflowRun 表
+
+- [x] 11. 数据库 Migration
+
+
+
+
+
+
+  - [x] 11.1 扩展 WorkflowRun 表
+
+
+
+
     - 添加 parent_workflow_run_id 字段
     - 添加 rerun_reason 字段
     - 添加 rerun_shot_ids_jsonb 字段
     - _需求: 7.1, 7.2, 8.1_
 
-  - [ ] 11.2 创建索引
+
+  - [x] 11.2 创建索引
+
+
     - qa_reports: (episode_id, created_at DESC)
     - review_decisions: (stage_task_id, created_at DESC)
     - workflow_runs: (episode_id, rerun_from_stage)
     - _需求: 10.5, 12.1, 15.4_
 
-  - [ ] 11.3 编写 Migration 脚本
+  - [x] 11.3 编写 Migration 脚本
+
+
+
+
     - 创建 006_qa_review_rerun.sql
     - 测试 migration
     - 更新 README
     - _需求: 所有_
 
-- [ ] 12. 文档和示例
-  - [ ] 12.1 编写 QA Runtime 使用文档
+- [x] 12. 文档和示例
+
+
+
+
+
+
+  - [x] 12.1 编写 QA Runtime 使用文档
+
     - 记录 QA 检查类型
     - 提供配置示例
     - 说明扩展方法
     - _需求: 1.1, 2.1, 3.1_
 
-  - [ ] 12.2 编写 Review 流程文档
+
+  - [x] 12.2 编写 Review 流程文档
+
     - 说明审核流程
     - 提供决策示例
     - 说明 rerun 触发
     - _需求: 5.1, 6.1, 11.1_
 
-  - [ ] 12.3 编写 Rerun 使用指南
+
+  - [x] 12.3 编写 Rerun 使用指南
+
     - 说明 rerun 类型
     - 提供使用示例
     - 说明注意事项
     - _需求: 7.1, 8.1, 9.1_
 
-  - [ ] 12.4 编写 Iteration 5 完成报告
+
+  - [x] 12.4 编写 Iteration 5 完成报告
+
     - 总结完成的任务
     - 记录关键指标
     - 列出已知问题
@@ -354,7 +458,14 @@
     - _需求: 所有_
 
 
-- [ ] 13. Checkpoint - 确保核心功能可用
+- [x] 13. Checkpoint - 确保核心功能可用
+
+
+
+
+
+
+
   - 运行端到端测试
   - 验证 QA 检查
   - 验证 Review 流程

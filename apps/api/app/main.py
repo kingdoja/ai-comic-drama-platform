@@ -6,6 +6,9 @@ from app.api.routes.projects import router as project_router
 from app.api.routes.brief import router as brief_router
 from app.api.routes.shots import router as shots_router
 from app.api.routes.preview import router as preview_router
+from app.api.routes.qa import router as qa_router
+from app.api.routes.review import router as review_router
+from app.api.routes.rerun import router as rerun_router
 from app.core.config import settings
 
 app = FastAPI(title=settings.app_name)
@@ -23,3 +26,6 @@ app.include_router(project_router)
 app.include_router(brief_router)
 app.include_router(shots_router)
 app.include_router(preview_router)
+app.include_router(qa_router)
+app.include_router(review_router)
+app.include_router(rerun_router)

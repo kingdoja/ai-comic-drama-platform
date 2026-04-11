@@ -101,6 +101,41 @@ def db(test_session: Session) -> Session:
     return test_session
 
 
+# Test data fixtures
+from uuid import uuid4
+from app.db.models import ProjectModel, EpisodeModel
+
+
+@pytest.fixture(scope="function")
+def test_project(test_session: Session) -> ProjectModel:
+    """Create a test project."""
+    project = ProjectModel(
+        id=uuid4(),
+        name="Test Project",
+        source_mode="original",
+        target_platform="web",
+        status="active"
+    )
+    test_session.add(project)
+    test_session.flush()
+    return project
+
+
+@pytest.fixture(scope="function")
+def test_episode(test_session: Session, test_project: ProjectModel) -> EpisodeModel:
+    """Create a test episode."""
+    episode = EpisodeModel(
+        id=uuid4(),
+        project_id=test_project.id,
+        episode_no=1,
+        title="Test Episode",
+        target_duration_sec=300  # 5 minutes
+    )
+    test_session.add(episode)
+    test_session.flush()
+    return episode
+
+
 # Configure Hypothesis settings for property-based tests
 from hypothesis import settings as hypothesis_settings, Verbosity
 

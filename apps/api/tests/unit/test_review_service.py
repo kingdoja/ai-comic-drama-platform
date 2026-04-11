@@ -18,7 +18,7 @@ from app.db.models import StageTaskModel, WorkflowRunModel, ReviewDecisionModel
 class TestReviewGateService:
     """Test suite for ReviewGateService"""
     
-    def test_pause_for_review_success(self, test_session):
+    def test_pause_for_review_success(self, test_session, test_project, test_episode):
         """
         Test pausing workflow for review.
         
@@ -26,9 +26,9 @@ class TestReviewGateService:
         - When Stage is marked review_required, pause workflow
         - Update StageTask review_status to "pending"
         """
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures for project and episode
+        project_id = test_project.id
+        episode_id = test_episode.id
         
         # Create workflow
         workflow = WorkflowRunModel(
@@ -75,11 +75,11 @@ class TestReviewGateService:
         test_session.refresh(workflow)
         assert workflow.status == "waiting_review"
     
-    def test_pause_for_review_not_required(self, test_session):
+    def test_pause_for_review_not_required(self, test_session, test_project, test_episode):
         """Test that pausing fails if stage is not marked for review."""
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         
         workflow = WorkflowRunModel(
             id=uuid4(),
@@ -118,7 +118,7 @@ class TestReviewGateService:
         with pytest.raises(ValueError, match="not marked for review"):
             service.pause_for_review(stage_task.id)
     
-    def test_submit_review_approved(self, test_session):
+    def test_submit_review_approved(self, test_session, test_project, test_episode):
         """
         Test submitting an approved review decision.
         
@@ -127,9 +127,9 @@ class TestReviewGateService:
         - Record reviewer_user_id and decision
         - approved: Resume workflow execution
         """
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         reviewer_id = uuid4()
         
         workflow = WorkflowRunModel(
@@ -187,16 +187,16 @@ class TestReviewGateService:
         test_session.refresh(workflow)
         assert workflow.status == "running"
     
-    def test_submit_review_rejected(self, test_session):
+    def test_submit_review_rejected(self, test_session, test_project, test_episode):
         """
         Test submitting a rejected review decision.
         
         Validates Requirements 5.5, 6.3:
         - rejected: Terminate workflow
         """
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         reviewer_id = uuid4()
         
         workflow = WorkflowRunModel(
@@ -253,7 +253,7 @@ class TestReviewGateService:
         assert workflow.status == "failed"
         assert "Review rejected" in workflow.failure_reason
     
-    def test_submit_review_revision_required(self, test_session):
+    def test_submit_review_revision_required(self, test_session, test_project, test_episode):
         """
         Test submitting a revision_required review decision.
         
@@ -261,9 +261,9 @@ class TestReviewGateService:
         - revision_required: Mark for rerun
         - Record rerun parameters in payload
         """
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         reviewer_id = uuid4()
         
         workflow = WorkflowRunModel(
@@ -324,11 +324,11 @@ class TestReviewGateService:
         test_session.refresh(workflow)
         assert workflow.status == "waiting_review"
     
-    def test_submit_review_invalid_decision(self, test_session):
+    def test_submit_review_invalid_decision(self, test_session, test_project, test_episode):
         """Test that invalid decision values are rejected."""
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         
         workflow = WorkflowRunModel(
             id=uuid4(),
@@ -370,11 +370,11 @@ class TestReviewGateService:
                 decision="invalid_decision",
             )
     
-    def test_get_pending_reviews(self, test_session):
+    def test_get_pending_reviews(self, test_session, test_project, test_episode):
         """Test getting all pending reviews for an episode."""
-        # Setup
-        project_id = uuid4()
-        episode_id = uuid4()
+        # Setup - use test fixtures
+        project_id = test_project.id
+        episode_id = test_episode.id
         
         workflow = WorkflowRunModel(
             id=uuid4(),
@@ -443,3 +443,4 @@ class TestReviewGateService:
         assert pending_task1.id in pending_ids
         assert pending_task2.id in pending_ids
         assert approved_task.id not in pending_ids
+

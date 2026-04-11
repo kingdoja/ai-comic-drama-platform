@@ -10,6 +10,8 @@ Migrations are numbered sequentially and should be applied in order:
 2. `002_documents_assets_qa.sql` - Documents, assets, and QA reports tables
 3. `003_iteration1_shots_reviews.sql` - Shots and review decisions tables
 4. `004_performance_indexes.sql` - Performance indexes for workspace queries
+5. `005_add_stage_task_metrics.sql` - Add metrics_jsonb column to stage_tasks
+6. `006_qa_review_rerun.sql` - QA/Review/Rerun support: workflow_runs extensions and indexes
 
 ## Applying Migrations
 
@@ -27,6 +29,8 @@ docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/00
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/002_documents_assets_qa.sql
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/003_iteration1_shots_reviews.sql
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/004_performance_indexes.sql
+docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/005_add_stage_task_metrics.sql
+docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/006_qa_review_rerun.sql
 ```
 
 ### Using Local PostgreSQL
@@ -39,6 +43,8 @@ psql -U postgres -d thinking -f infra/migrations/001_initial_schema.sql
 psql -U postgres -d thinking -f infra/migrations/002_documents_assets_qa.sql
 psql -U postgres -d thinking -f infra/migrations/003_iteration1_shots_reviews.sql
 psql -U postgres -d thinking -f infra/migrations/004_performance_indexes.sql
+psql -U postgres -d thinking -f infra/migrations/005_add_stage_task_metrics.sql
+psql -U postgres -d thinking -f infra/migrations/006_qa_review_rerun.sql
 ```
 
 ### Using Python Script
@@ -82,6 +88,38 @@ The latest migration adds three indexes to optimize workspace aggregation querie
 3. **idx_stage_tasks_workflow_stage_created**: Optimizes fetching stage tasks by workflow and stage type (Requirement 8.4)
 
 These indexes use `IF NOT EXISTS` so they can be safely re-applied without errors.
+
+## Migration 006: QA / Review / Rerun Support
+
+This migration adds support for the QA/Review/Rerun workflow:
+
+### Workflow Runs Extensions
+
+1. **parent_workflow_run_id**: Tracks parent-child relationships for reruns
+2. **rerun_reason**: Records why a rerun was triggered (from review or manual)
+3. **rerun_shot_ids_jsonb**: Stores which shots to rerun for partial reruns
+
+### Performance Indexes
+
+1. **idx_qa_reports_episode_created_at**: Optimizes QA report queries by episode (Requirement 10.5)
+2. **idx_review_decisions_stage_task_created_at**: Optimizes review history queries (Requirement 12.1)
+3. **idx_workflow_runs_episode_rerun_from_stage**: Optimizes rerun history queries (Requirement 15.4)
+4. **idx_workflow_runs_parent_workflow_run_id**: Optimizes parent-child rerun queries
+5. **idx_workflow_runs_rerun_shot_ids**: GIN index for efficient JSONB queries on shot IDs
+
+### Testing the Migration
+
+Run the test script to verify the migration was applied correctly:
+
+```bash
+cd infra/migrations
+python test_006_migration.py
+```
+
+The test script validates:
+- All new columns exist
+- All indexes were created
+- Foreign key constraints are in place
 
 ## Notes
 

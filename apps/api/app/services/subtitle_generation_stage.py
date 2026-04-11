@@ -88,16 +88,18 @@ class SubtitleGenerationStage:
         episode_id: UUID,
         project_id: UUID,
         stage_task_id: UUID,
+        shot_ids: Optional[List[UUID]] = None,
     ) -> SubtitleGenerationResult:
         """
         Execute the Subtitle Generation Stage for an episode.
 
-        Implements Requirements: 4.1, 4.2, 4.3, 4.4
+        Implements Requirements: 4.1, 4.2, 4.3, 4.4, 8.2, 8.3
 
         Args:
             episode_id: Episode UUID
             project_id: Project UUID
             stage_task_id: StageTask UUID for tracking
+            shot_ids: Optional list of shot IDs to process (for shot-level reruns)
 
         Returns:
             SubtitleGenerationResult with execution details
@@ -113,6 +115,10 @@ class SubtitleGenerationStage:
         try:
             # 1. Load shots ordered by scene/shot number (Requirement 4.1)
             shots = self.shot_repo.list_current_for_episode(episode_id)
+            
+            # 2. Filter shots by shot_ids if provided (Requirements 8.2, 8.3)
+            if shot_ids is not None:
+                shots = [shot for shot in shots if shot.id in shot_ids]
 
             if not shots:
                 execution_time_ms = int((time.time() - start_time) * 1000)

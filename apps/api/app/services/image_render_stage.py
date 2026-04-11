@@ -93,17 +93,20 @@ class ImageRenderStage:
         stage_task_id: UUID,
         max_concurrent: int = 5,
         monitor: Optional["ProviderCallMonitor"] = None,
+        shot_ids: Optional[List[UUID]] = None,
     ) -> StageExecutionResult:
         """
         Execute the Image Render Stage for an episode.
         
-        Implements Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+        Implements Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 8.2, 8.3
         
         Args:
             episode_id: Episode ID
             project_id: Project ID
             stage_task_id: StageTask ID for tracking
             max_concurrent: Maximum concurrent image generations
+            monitor: Optional provider call monitor
+            shot_ids: Optional list of shot IDs to process (for shot-level reruns)
             
         Returns:
             StageExecutionResult: Execution result with metrics
@@ -124,6 +127,10 @@ class ImageRenderStage:
         try:
             # 1. Build inputs for all shots (Requirement 2.1)
             inputs = self.input_builder.build_inputs_for_episode(episode_id)
+            
+            # 2. Filter inputs by shot_ids if provided (Requirements 8.2, 8.3)
+            if shot_ids is not None:
+                inputs = [inp for inp in inputs if inp.shot_id in shot_ids]
             
             if not inputs:
                 # No shots to process

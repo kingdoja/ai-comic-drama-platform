@@ -99,17 +99,19 @@ class MediaWorkflowService:
         episode: EpisodeModel,
         workflow_run: WorkflowRunModel,
         start_stage: Optional[str] = None,
+        shot_ids: Optional[List[UUID]] = None,
     ) -> MediaWorkflowResult:
         """
         Execute the complete media workflow chain for an episode.
         
-        Implements Requirements: 10.1, 10.2, 10.3, 10.4, 10.5
+        Implements Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 8.2, 8.3
         
         Args:
             project: Project model
             episode: Episode model
             workflow_run: WorkflowRun model
             start_stage: Optional stage to start from (for reruns)
+            shot_ids: Optional list of shot IDs to process (for shot-level reruns)
             
         Returns:
             MediaWorkflowResult with execution details
@@ -143,6 +145,7 @@ class MediaWorkflowService:
                     project_id=project.id,
                     episode_id=episode.id,
                     stage_task_id=stage_task.id,
+                    shot_ids=shot_ids,  # Pass shot_ids for filtering
                 )
                 
                 # Store result
@@ -327,17 +330,19 @@ class MediaWorkflowService:
         project_id: UUID,
         episode_id: UUID,
         stage_task_id: UUID,
+        shot_ids: Optional[List[UUID]] = None,
     ) -> Dict[str, Any]:
         """
         Execute a specific media stage.
         
-        Implements Requirement 10.1
+        Implements Requirement 10.1, 8.2, 8.3
         
         Args:
             stage_type: Type of stage to execute
             project_id: Project ID
             episode_id: Episode ID
             stage_task_id: StageTask ID
+            shot_ids: Optional list of shot IDs to process (for shot-level reruns)
             
         Returns:
             Dictionary with execution result
@@ -347,6 +352,7 @@ class MediaWorkflowService:
                 episode_id=episode_id,
                 project_id=project_id,
                 stage_task_id=stage_task_id,
+                shot_ids=shot_ids,  # Pass shot_ids for filtering
             )
             return self._convert_stage_result(result)
             
@@ -355,6 +361,7 @@ class MediaWorkflowService:
                 episode_id=episode_id,
                 project_id=project_id,
                 stage_task_id=stage_task_id,
+                shot_ids=shot_ids,  # Pass shot_ids for filtering
             )
             return self._convert_subtitle_result(result)
             
@@ -363,6 +370,7 @@ class MediaWorkflowService:
                 episode_id=episode_id,
                 project_id=project_id,
                 stage_task_id=stage_task_id,
+                shot_ids=shot_ids,  # Pass shot_ids for filtering
             )
             return self._convert_tts_result(result)
             
@@ -371,6 +379,7 @@ class MediaWorkflowService:
                 episode_id=episode_id,
                 project_id=project_id,
                 stage_task_id=stage_task_id,
+                shot_ids=shot_ids,  # Pass shot_ids for filtering
             )
             return self._convert_preview_result(result)
         

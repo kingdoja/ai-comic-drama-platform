@@ -104,17 +104,20 @@ class TTSStage:
         stage_task_id: UUID,
         max_concurrent: int = 5,
         monitor: Optional["ProviderCallMonitor"] = None,
+        shot_ids: Optional[List[UUID]] = None,
     ) -> TTSStageResult:
         """
         Execute the TTS Stage for an episode.
 
-        Implements Requirements: 5.1, 5.2, 5.3, 5.4
+        Implements Requirements: 5.1, 5.2, 5.3, 5.4, 8.2, 8.3
 
         Args:
             episode_id: Episode UUID
             project_id: Project UUID
             stage_task_id: StageTask UUID for tracking
             max_concurrent: Maximum concurrent TTS synthesis calls
+            monitor: Optional provider call monitor
+            shot_ids: Optional list of shot IDs to process (for shot-level reruns)
 
         Returns:
             TTSStageResult with execution details
@@ -136,6 +139,10 @@ class TTSStage:
         try:
             # 1. Load shots (Requirement 5.1)
             shots = self.shot_repo.list_current_for_episode(episode_id)
+            
+            # 2. Filter shots by shot_ids if provided (Requirements 8.2, 8.3)
+            if shot_ids is not None:
+                shots = [shot for shot in shots if shot.id in shot_ids]
 
             if not shots:
                 execution_time_ms = int((time.time() - start_time) * 1000)

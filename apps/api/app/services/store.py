@@ -41,7 +41,7 @@ from app.schemas.workspace import (
     WorkspaceQAResponse,
     WorkspaceReviewResponse,
 )
-from app.services.review_service import ReviewService
+from app.services.review_service import ReviewGateService
 from app.services.workflow_service import WorkflowService
 
 
@@ -276,7 +276,7 @@ class DatabaseStore:
         self.shots = ShotRepository(db)
         self.reviews = ReviewRepository(db)
         self.workflow_service = WorkflowService(db, self.workflows, self.stage_tasks, self.documents, self.shots, self.episodes)
-        self.review_service = ReviewService(db, self.stage_tasks, self.reviews)
+        self.review_service = ReviewGateService(db, self.reviews, self.stage_tasks, self.workflows)
 
     def create_project(self, payload: CreateProjectRequest) -> ProjectResponse:
         return _to_project_response(self.projects.create(payload))
@@ -330,7 +330,17 @@ class DatabaseStore:
         # Fetch all assets for primary_assets lookup (Requirement 15.2)
         all_assets_models = self.assets.list_for_episode(episode_id)
 
-        qa_reports = [_to_qa_summary(item) for item in self.qa_reports.list_for_episode(episode_id)]
+        # Fetch QA reports and calculate critical issue count
+        qa_report_models = self.qa_reports.list_for_episode(episode_id)
+        qa_reports = [_to_qa_summary(item) for item in qa_report_models]
+        
+        # Calculate critical issue count for QA summary
+        critical_issue_count = sum(
+            item.issue_count 
+            for item in qa_report_models 
+            if item.severity == "critical"
+        )
+        
         if latest_workflow:
             stage_task_models = self.stage_tasks.list_for_workflow(latest_workflow.id)
         else:
@@ -361,11 +371,16 @@ class DatabaseStore:
 
         reviews = [_to_review_summary(item) for item in self.reviews.list_for_episode(episode_id)]
 
+        # Calculate QA result and issue count
         qa_result = "pending"
         issue_count = 0
         if qa_reports:
             qa_result = qa_reports[0].result
             issue_count = sum(item.issue_count for item in qa_reports)
+
+        # Calculate rerun count - count workflows with rerun_from_stage set
+        all_workflows = self.workflows.list_for_episode(episode_id)
+        rerun_count = sum(1 for wf in all_workflows if wf.rerun_from_stage is not None)
 
         pending_review_count = sum(
             1
@@ -405,9 +420,12 @@ class DatabaseStore:
             qa_summary=WorkspaceQAResponse(
                 result=qa_result,
                 issue_count=issue_count,
+                critical_issue_count=critical_issue_count,
+                has_critical_issues=critical_issue_count > 0,
                 reports=qa_reports,
             ),
             review_summary=review_summary,
+            rerun_count=rerun_count,
             latest_workflow=_to_workflow_response(latest_workflow),
             media_status=media_status,
             generated_at=datetime.now(timezone.utc),
