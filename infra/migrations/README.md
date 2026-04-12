@@ -12,6 +12,7 @@ Migrations are numbered sequentially and should be applied in order:
 4. `004_performance_indexes.sql` - Performance indexes for workspace queries
 5. `005_add_stage_task_metrics.sql` - Add metrics_jsonb column to stage_tasks
 6. `006_qa_review_rerun.sql` - QA/Review/Rerun support: workflow_runs extensions and indexes
+7. `007_fix_review_decision_length.sql` - Fix review_decisions.decision field length (VARCHAR(16) → VARCHAR(32))
 
 ## Applying Migrations
 
@@ -31,6 +32,7 @@ docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/00
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/004_performance_indexes.sql
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/005_add_stage_task_metrics.sql
 docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/006_qa_review_rerun.sql
+docker exec -i docker-postgres-1 psql -U postgres -d thinking < ../migrations/007_fix_review_decision_length.sql
 ```
 
 ### Using Local PostgreSQL
@@ -45,6 +47,7 @@ psql -U postgres -d thinking -f infra/migrations/003_iteration1_shots_reviews.sq
 psql -U postgres -d thinking -f infra/migrations/004_performance_indexes.sql
 psql -U postgres -d thinking -f infra/migrations/005_add_stage_task_metrics.sql
 psql -U postgres -d thinking -f infra/migrations/006_qa_review_rerun.sql
+psql -U postgres -d thinking -f infra/migrations/007_fix_review_decision_length.sql
 ```
 
 ### Using Python Script
@@ -88,6 +91,55 @@ The latest migration adds three indexes to optimize workspace aggregation querie
 3. **idx_stage_tasks_workflow_stage_created**: Optimizes fetching stage tasks by workflow and stage type (Requirement 8.4)
 
 These indexes use `IF NOT EXISTS` so they can be safely re-applied without errors.
+
+## Migration 007: Fix review_decisions.decision Field Length
+
+This migration fixes a bug where the `decision` field in `review_decisions` table was too short (VARCHAR(16)) to store the 'revision_required' decision type (18 characters).
+
+### Changes
+
+- Extended `decision` column from VARCHAR(16) to VARCHAR(32)
+- Added comment documenting the fix
+
+### Problem
+
+The original schema defined:
+```sql
+decision VARCHAR(16) NOT NULL
+```
+
+But the application uses three decision types:
+- 'approved' (8 chars) ✅
+- 'rejected' (8 chars) ✅
+- 'revision_required' (18 chars) ❌
+
+### Solution
+
+```sql
+ALTER TABLE review_decisions
+ALTER COLUMN decision TYPE VARCHAR(32);
+```
+
+### Testing
+
+Run the test script to verify the fix:
+
+```bash
+cd infra/migrations
+python test_007_migration.py
+```
+
+The test validates:
+- Column length is at least 32 characters
+- 'revision_required' can be inserted successfully
+- All decision types can be stored
+
+### Quick Apply
+
+```bash
+cd infra/migrations
+bash apply_007_migration.sh
+```
 
 ## Migration 006: QA / Review / Rerun Support
 
